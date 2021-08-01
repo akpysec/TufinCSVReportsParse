@@ -40,8 +40,8 @@ writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
 new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 
-def check(column="Rule status", value="enabled"):
-    parse = new_frame[new_frame[column].str.contains(value)]
+def check(column="Rule status", value="enabled".lower(), dataframe=new_frame):   # Just in Case .lower() is used
+    parse = dataframe[dataframe[column].str.contains(value)]
     return parse
 
 
@@ -119,14 +119,23 @@ for src_rules, src_srv_rules, src_secure_uid in zip(new_frame['Source'], new_fra
                 new_frame[new_frame['SecureTrack Rule UID'] == dst_secure_uid])
             crossed_rules = crossed_rules.drop_duplicates(keep='first')
             # Checking if found crossed rules in "Enabled" status
-            crossed_rules = crossed_rules[crossed_rules['Rule status'].str.contains("enabled")]
-            if not crossed_rules.empty:
-                crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
+            if not check(dataframe=crossed_rules).empty:
+                check(dataframe=crossed_rules).to_excel(writer, sheet_name="Crossed Rules", startrow=0)
             else:
                 pass
 
 # Un-Safe Protocols rules
-"""Needs Scripting"""
+unsafe_protocols = ['smb', 'microsoft-ds', 'telnet', 'ftp', 'http']
+# Note searching for http will result in finding https also,
+# consider removing if unnecessary, also add as you wish to the list
+for protocol in unsafe_protocols:
+    if not check(column="Service", value=protocol).empty:
+        if not check().empty:
+            check(column="Service", value=protocol).to_excel(writer, sheet_name="Un-Safe Protocols")
+        else:
+            pass
+    else:
+        pass
 
 # RDP (Remote Desktop Protocol) rules
 """Needs Scripting"""
