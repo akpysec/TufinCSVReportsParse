@@ -40,7 +40,9 @@ writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
 new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 
+# Main function used across most of the checks - unpacks dataframe column & check if value is present
 def check(column="Rule status", value="enabled".lower(), dataframe=new_frame):   # Just in Case .lower() is used
+    """A default values used to save some code"""
     parse = dataframe[dataframe[column].str.contains(value)]
     return parse
 
