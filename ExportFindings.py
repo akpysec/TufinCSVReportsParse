@@ -41,30 +41,51 @@ new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 # Checks must be "lowercase"
 # Any Check at Service Field
+# If Palo-Alto FW is present check Application field value - If No value or any is present then proceed
 any_srv = new_frame.loc[
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Service negated'] == 'false')
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Application Identity'].isnull() == True)
+    |
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Application Identity'] == 'any')
     ]
 
 if not any_srv.empty:
     any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
 
 # Any Check at Source Field
+# If Palo-Alto FW is present check From zone field value - If No value or any is present then proceed
 any_src = new_frame.loc[
     (new_frame['Source'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Source negated'] == 'false')
+    (new_frame['Source negated'] == 'false') &
+    (new_frame['From zone'].isnull() == True)
+    |
+    (new_frame['Source'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Source negated'] == 'false') &
+    (new_frame['From zone'] == 'any')
     ]
 
 if not any_src.empty:
     any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
 
 # Any Check at Destination Field
+# If Palo-Alto FW is present check To zone field value - If No value or any is present then proceed
 any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Destination negated'] == 'false')
+    (new_frame['Destination negated'] == 'false') &
+    (new_frame['To zone'].isnull() == True)
+    |
+    (new_frame['Destination'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Destination negated'] == 'false') &
+    (new_frame['To zone'] == 'any')
     ]
 
 if not any_dst.empty:
@@ -76,12 +97,20 @@ if not disabled_rules.empty:
     disabled_rules.to_excel(writer, sheet_name="Disabled rules", startrow=0)
 
 # Reject rules check
-reject_rules = new_frame.loc[(new_frame['Action'] == 'reject') & (new_frame['Rule status'] == 'enabled')]
+reject_rules = new_frame.loc[
+    (new_frame['Action'] == 'reject') &
+    (new_frame['Rule status'] == 'enabled')
+    ]
+
 if not reject_rules.empty:
     reject_rules.to_excel(writer, sheet_name="Reject rules", startrow=0)
 
 # No Log rules
-no_log_rules = new_frame.loc[(new_frame['Track'] == 'none') & (new_frame['Rule status'] == 'enabled')]
+no_log_rules = new_frame.loc[
+    (new_frame['Track'] == 'none') &
+    (new_frame['Rule status'] == 'enabled')
+    ]
+
 if not no_log_rules.empty:
     no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
 
@@ -96,6 +125,7 @@ crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
 
 # Sorting rules by Service - for easier view
 crossed_rules = crossed_rules.sort_values('Service')
+
 if not crossed_rules.empty:
     crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
 
@@ -113,9 +143,21 @@ unsafe_protocols = [
     'sshv1'
 ]
 
-unsafe_srv = new_frame.loc[(new_frame['Service'].isin(unsafe_protocols)) & (new_frame['Rule status'] == 'enabled')]
+unsafe_srv = new_frame.loc[
+    (new_frame['Service'].isin(unsafe_protocols)) &
+    (new_frame['Rule status'] == 'enabled')
+    ]
+
+# Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
+
 if not unsafe_srv.empty:
     unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
+
+# Worst Rules - Presence of combination of multiple checks on one rule
+# Example: 
+# From "Any" Zone & "Any" Source traffic may proceed to "Any" Zone & "Any" Destination on Any Service / Application
+"""Needs Scripting"""
+
 
 writer.save()
