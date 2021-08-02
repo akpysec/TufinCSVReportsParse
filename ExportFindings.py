@@ -41,15 +41,27 @@ new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 # Checks must be "lowercase"
 # Any Check at Service Field
-any_srv = new_frame.loc[(new_frame['Service'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_srv = new_frame.loc[
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false'
+     )]
 any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
 
 # Any Check at Source Field
-any_src = new_frame.loc[(new_frame['Source'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_src = new_frame.loc[
+    (new_frame['Source'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Source negated'] == 'false')
+    ]
 any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
 
 # Any Check at Destination Field
-any_dst = new_frame.loc[(new_frame['Destination'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_dst = new_frame.loc[
+    (new_frame['Destination'] == 'any') &
+    (new_frame['Rule status'] == 'enabled')
+    (new_frame['Destination negated'] == 'false')
+]
 any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
 
 # Disabled Rules check
@@ -65,7 +77,8 @@ no_log_rules = new_frame.loc[(new_frame['Track'] == 'none') & (new_frame['Rule s
 no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
 
 # Crossed Rules check
-crossed_rules = new_frame.loc[(new_frame['Source'].isin(new_frame['Destination'])) & (new_frame['Rule status'] == 'enabled')]
+crossed_rules = new_frame.loc[
+    (new_frame['Source'].isin(new_frame['Destination'])) & (new_frame['Rule status'] == 'enabled')]
 crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
 crossed_rules = crossed_rules.sort_values('Service')
 crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
@@ -86,6 +99,5 @@ unsafe_protocols = ['smb',
 unsafe_srv = new_frame.loc[(new_frame['Service'].isin(unsafe_protocols)) & (new_frame['Rule status'] == 'enabled')]
 unsafe_srv = unsafe_srv.sort_values('Service')
 unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
-
 
 writer.save()
