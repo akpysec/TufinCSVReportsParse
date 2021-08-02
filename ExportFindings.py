@@ -44,8 +44,8 @@ new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 any_srv = new_frame.loc[
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Service negated'] == 'false'
-     )]
+    (new_frame['Service negated'] == 'false')
+    ]
 any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
 
 # Any Check at Source Field
@@ -61,7 +61,7 @@ any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled')
     (new_frame['Destination negated'] == 'false')
-]
+    ]
 any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
 
 # Disabled Rules check
