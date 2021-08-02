@@ -46,7 +46,9 @@ any_srv = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service negated'] == 'false')
     ]
-any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
+
+if not any_srv.empty:
+    any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
 
 # Any Check at Source Field
 any_src = new_frame.loc[
@@ -54,50 +56,66 @@ any_src = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Source negated'] == 'false')
     ]
-any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
+
+if not any_src.empty:
+    any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
 
 # Any Check at Destination Field
 any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
-    (new_frame['Rule status'] == 'enabled')
+    (new_frame['Rule status'] == 'enabled') &
     (new_frame['Destination negated'] == 'false')
     ]
-any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
+
+if not any_dst.empty:
+    any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
 
 # Disabled Rules check
 disabled_rules = new_frame.loc[new_frame['Rule status'] == 'disabled']
-disabled_rules.to_excel(writer, sheet_name="Disabled rules", startrow=0)
+if not disabled_rules.empty:
+    disabled_rules.to_excel(writer, sheet_name="Disabled rules", startrow=0)
 
 # Reject rules check
 reject_rules = new_frame.loc[(new_frame['Action'] == 'reject') & (new_frame['Rule status'] == 'enabled')]
-reject_rules.to_excel(writer, sheet_name="Reject rules", startrow=0)
+if not reject_rules.empty:
+    reject_rules.to_excel(writer, sheet_name="Reject rules", startrow=0)
 
 # No Log rules
 no_log_rules = new_frame.loc[(new_frame['Track'] == 'none') & (new_frame['Rule status'] == 'enabled')]
-no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
+if not no_log_rules.empty:
+    no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
 
 # Crossed Rules check
 crossed_rules = new_frame.loc[
-    (new_frame['Source'].isin(new_frame['Destination'])) & (new_frame['Rule status'] == 'enabled')]
+    (new_frame['Source'].isin(new_frame['Destination'])) &
+    (new_frame['Rule status'] == 'enabled')]
+
+# There may appear rules with the same Source & Destination but different Protocols,
+# So, this one keeps rules with the same protocols
 crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
+
+# Sorting rules by Service - for easier view
 crossed_rules = crossed_rules.sort_values('Service')
-crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
+if not crossed_rules.empty:
+    crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
 
 # Un-Safe Protocols rules
 # Add as you wish to the list
-unsafe_protocols = ['smb',
-                    'smbv1',
-                    'microsoft-ds',
-                    'telnet',
-                    'ftp',
-                    'http',
-                    'remote_desktop_protocol',
-                    'rdp',
-                    'sshv1'
-                    ]
+unsafe_protocols = [
+    'smb',
+    'smbv1',
+    'microsoft-ds',
+    'telnet',
+    'ftp',
+    'http',
+    'remote_desktop_protocol',
+    'rdp',
+    'sshv1'
+]
 
 unsafe_srv = new_frame.loc[(new_frame['Service'].isin(unsafe_protocols)) & (new_frame['Rule status'] == 'enabled')]
 unsafe_srv = unsafe_srv.sort_values('Service')
-unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
+if not unsafe_srv.empty:
+    unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
 
 writer.save()
