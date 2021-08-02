@@ -32,114 +32,60 @@ while (number := number + 1) < len(files):
 # Creating a new DataFrame from a list
 new_frame = pd.DataFrame(dataframe_list)
 
-# Removing duplicate Rules
+# Removing duplicate Rules from a DataFrame
 new_frame = new_frame.drop_duplicates(keep='first')
 
 # Writing to all rules to "Rules" sheet
 writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
 new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
-
-# Main function used across most of the checks - unpacks dataframe column & check if value is present
-def check(column="Rule status", value="enabled".lower(), dataframe=new_frame):   # Just in Case .lower() is used
-    """A default values used to save some code"""
-    parse = dataframe[dataframe[column].str.contains(value)]
-    return parse
-
-
 # Checks must be "lowercase"
 # Any Check at Service Field
-if not check(column="Service", value="any").empty:
-    if not check().empty:
-        for src_neg in check(column="Service", value="any")['Service negated']:
-            if src_neg == 'false':
-                check(column="Service", value="any").to_excel(writer, sheet_name="Any Service", startrow=0)
-            else:
-                pass
-    else:
-        pass
-else:
-    pass
+any_srv = new_frame.loc[(new_frame['Service'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
 
 # Any Check at Source Field
-if not check(column="Source", value="any").empty:
-    if not check().empty:
-        for src_neg in check(column="Source", value="any")['Source negated']:
-            if src_neg == 'false':
-                check(column="Source", value="any").to_excel(writer, sheet_name="Any Source", startrow=0)
-            else:
-                pass
-    else:
-        pass
-else:
-    pass
+any_src = new_frame.loc[(new_frame['Source'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
 
 # Any Check at Destination Field
-if not check(column="Destination", value="any").empty:
-    if not check().empty:
-        for src_neg in check(column="Destination", value="any")['Destination negated']:
-            if src_neg == 'false':
-                check(column="Destination", value="any").to_excel(writer, sheet_name="Any Destination", startrow=0)
-            else:
-                pass
-    else:
-        pass
-else:
-    pass
+any_dst = new_frame.loc[(new_frame['Destination'] == 'any') & (new_frame['Rule status'] == 'enabled')]
+any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
 
 # Disabled Rules check
-if not check(value="disabled").empty:
-    check(value="disabled").to_excel(writer, sheet_name="Disabled rules", startrow=0)
-else:
-    pass
+disabled_rules = new_frame.loc[new_frame['Rule status'] == 'disabled']
+disabled_rules.to_excel(writer, sheet_name="Disabled rules", startrow=0)
 
 # Reject rules check
-if not check(column="Action", value="reject").empty:
-    if not check().empty:
-        check(column="Action", value="reject").to_excel(writer, sheet_name="Reject rules", startrow=0)
-    else:
-        pass
-else:
-    pass
+reject_rules = new_frame.loc[(new_frame['Action'] == 'reject') & (new_frame['Rule status'] == 'enabled')]
+reject_rules.to_excel(writer, sheet_name="Reject rules", startrow=0)
 
 # No Log rules
-if not check(column="Track", value="none").empty:
-    if not check().empty:
-        check(column="Track", value="none").to_excel(writer, sheet_name="No Log rules", startrow=0)
-    else:
-        pass
-else:
-    pass
+no_log_rules = new_frame.loc[(new_frame['Track'] == 'none') & (new_frame['Rule status'] == 'enabled')]
+no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
 
 # Crossed Rules check
-for src_rules, src_srv_rules, src_secure_uid in zip(new_frame['Source'], new_frame['Service'],
-                                                    new_frame['SecureTrack Rule UID']):
-    for dst_rules, dst_srv_rules, dst_secure_uid in zip(new_frame['Destination'], new_frame['Service'],
-                                                        new_frame['SecureTrack Rule UID']):
-        if (src_rules, src_srv_rules) == (dst_rules, dst_srv_rules):
-            crossed_rules = new_frame[new_frame['SecureTrack Rule UID'] == src_secure_uid].append(
-                new_frame[new_frame['SecureTrack Rule UID'] == dst_secure_uid])
-            crossed_rules = crossed_rules.drop_duplicates(keep='first')
-            # Checking if found crossed rules in "Enabled" status
-            if not check(dataframe=crossed_rules).empty:
-                check(dataframe=crossed_rules).to_excel(writer, sheet_name="Crossed Rules", startrow=0)
-            else:
-                pass
+crossed_rules = new_frame.loc[(new_frame['Source'].isin(new_frame['Destination'])) & (new_frame['Rule status'] == 'enabled')]
+crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
+crossed_rules = crossed_rules.sort_values('Service')
+crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
 
 # Un-Safe Protocols rules
-unsafe_protocols = ['smb', 'microsoft-ds', 'telnet', 'ftp', 'http']
-# Note searching for http will result in finding https also,
-# consider removing if unnecessary, also add as you wish to the list
-for protocol in unsafe_protocols:
-    if not check(column="Service", value=protocol).empty:
-        if not check().empty:
-            check(column="Service", value=protocol).to_excel(writer, sheet_name="Un-Safe Protocols")
-        else:
-            pass
-    else:
-        pass
+# Add as you wish to the list
+unsafe_protocols = ['smb',
+                    'smbv1',
+                    'microsoft-ds',
+                    'telnet',
+                    'ftp',
+                    'http',
+                    'remote_desktop_protocol',
+                    'rdp',
+                    'sshv1'
+                    ]
 
-# RDP (Remote Desktop Protocol) rules
-"""Needs Scripting"""
+unsafe_srv = new_frame.loc[(new_frame['Service'].isin(unsafe_protocols)) & (new_frame['Rule status'] == 'enabled')]
+unsafe_srv = unsafe_srv.sort_values('Service')
+unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
+
 
 writer.save()
