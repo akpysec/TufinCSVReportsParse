@@ -2,6 +2,7 @@
 
 import os
 import pandas as pd
+from openpyxl.utils.cell import get_column_letter
 
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
@@ -14,6 +15,11 @@ encoding_files = "windows-1252"
 number = 0
 
 dataframe_list = list()
+
+# Resolving "SettingWithCopyWarning"
+# https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+# SettingWithCopyWarning - Appeared when a .drop empty columns method was called before .to_excel method call
+pd.set_option('mode.chained_assignment', None)
 
 while (number := number + 1) < len(files):
     for f in files:
@@ -48,18 +54,43 @@ new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 # Color Definition
 colors = {
-    'PASS': '\033[92m',     # GREEN
+    'PASS': '\033[92m',  # GREEN
     'WARNING': '\033[93m',  # YELLOW
-    'FAIL': '\033[91m',     # RED
-    'RESET': '\033[0m'      # RESET COLOR
+    'FAIL': '\033[91m',  # RED
+    'RESET': '\033[0m'  # RESET COLOR
 }
 
 # Checks summary list
 checks_summary = list()
 
+
+# Main Checks function
+def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str, fail_msg: str):
+    if not data_frame.empty:
+        data_frame.dropna(how='all', axis=1, inplace=True)
+        data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0)
+
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+
+        colorize = ['blue', 'green', 'red']
+
+        if len(column) == 3:
+            for col, color in zip(column, colorize):
+                finding_position = list(data_frame).index(col) + 1
+                cell_format = workbook.add_format({'bold': True, 'font_color': color})
+                worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+        elif len(column) < 2:
+            finding_position = list(data_frame).index(column[0]) + 1
+            cell_format = workbook.add_format({'bold': True, 'font_color': 'red'})
+            worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+
+        checks_summary.append(fail_msg)
+    else:
+        checks_summary.append(pass_msg)
+
+
 # Checks must be "lowercase"
-# Any Check at Service Field
-# If Palo-Alto FW is present check Application field value - If No value or any is present then proceed
 any_srv = new_frame.loc[
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
@@ -72,13 +103,6 @@ any_srv = new_frame.loc[
     (new_frame['Application Identity'] == 'any')
     ]
 
-if not any_srv.empty:
-    any_srv.to_excel(writer, sheet_name="Any Service", startrow=0)
-    checks_summary.append(f'FAIL - {len(any_srv["Service"])} Rules with Object "Any" were found in "Service" | "Application Identity" Fields')
-else:
-    checks_summary.append('PASS - No Object "Any" found in "Service" | "Application Identity" Fields')
-# Any Check at Source Field
-# If Palo-Alto FW is present check From zone field value - If No value or any is present then proceed
 any_src = new_frame.loc[
     (new_frame['Source'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
@@ -91,14 +115,6 @@ any_src = new_frame.loc[
     (new_frame['From zone'] == 'any')
     ]
 
-if not any_src.empty:
-    any_src.to_excel(writer, sheet_name="Any Source", startrow=0)
-    checks_summary.append(f'FAIL - {len(any_src["Service"])} Rules with Object "Any" were found in "Source" | "From Zone" Fields')
-else:
-    checks_summary.append('PASS - No Object "Any" found in "Source" | "From Zone" Fields')
-
-# Any Check at Destination Field
-# If Palo-Alto FW is present check To zone field value - If No value or any is present then proceed
 any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
@@ -111,64 +127,31 @@ any_dst = new_frame.loc[
     (new_frame['To zone'] == 'any')
     ]
 
-if not any_dst.empty:
-    any_dst.to_excel(writer, sheet_name="Any Destination", startrow=0)
-    checks_summary.append('FAIL - {len(any_dst["Destination"])} Rules with Object "Any" were found in "Destination" | "To Zone" Fields')
-else:
-    checks_summary.append('PASS - No Object "Any" found in "Destination" | "To Zone" Fields')
+disabled_rules = new_frame.loc[
+    new_frame['Rule status'] == 'disabled'
+    ]
 
-# Disabled Rules check
-disabled_rules = new_frame.loc[new_frame['Rule status'] == 'disabled']
-
-if not disabled_rules.empty:
-    disabled_rules.to_excel(writer, sheet_name="Disabled rules", startrow=0)
-    checks_summary.append(f'FAIL - {len(disabled_rules["Rule status"])} "Disabled" Rules were found')
-else:
-    checks_summary.append('PASS - No "Disabled" Rules were found')
-
-# Reject rules check
 reject_rules = new_frame.loc[
     (new_frame['Action'] == 'reject') &
     (new_frame['Rule status'] == 'enabled')
     ]
 
-if not reject_rules.empty:
-    reject_rules.to_excel(writer, sheet_name="Reject rules", startrow=0)
-    checks_summary.append(f'FAIL - {len(reject_rules["Action"])} "Reject rules" Rules were found')
-else:
-    checks_summary.append('PASS - No "Reject" Object was found in "Action" Field')
-
-# No Log rules
 no_log_rules = new_frame.loc[
     (new_frame['Track'] == 'none') &
     (new_frame['Rule status'] == 'enabled')
     ]
 
-if not no_log_rules.empty:
-    no_log_rules.to_excel(writer, sheet_name="No Log rules", startrow=0)
-    checks_summary.append(f'FAIL - {len(no_log_rules["Track"])} "No Log rules" Rules were found')
-else:
-    checks_summary.append('PASS - Logs are on for All Rules')
-
-# Crossed Rules check
 crossed_rules = new_frame.loc[
     (new_frame['Source'].isin(new_frame['Destination'])) &
-    (new_frame['Rule status'] == 'enabled')]
-
+    (new_frame['Rule status'] == 'enabled')
+    ]
 # There may appear rules with the same Source & Destination but different Protocols,
 # So, this one keeps rules with the same protocols
 crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
-
 # Sorting rules by Service - for easier view
 crossed_rules = crossed_rules.sort_values('Service')
 
-if not crossed_rules.empty:
-    crossed_rules.to_excel(writer, sheet_name="Crossed Rules", startrow=0)
-    checks_summary.append(f'FAIL - {len(crossed_rules["Service"])} "Crossed Rules" Rules were found')
-else:
-    checks_summary.append('PASS - No "Crossed" Rules were found')
 
-# Un-Safe Protocols rules
 # Add as you wish to the list
 unsafe_protocols = [
     'smb',
@@ -181,34 +164,48 @@ unsafe_protocols = [
     'rdp',
     'sshv1'
 ]
-
 unsafe_srv = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service'].isin(unsafe_protocols)) |
     (new_frame['Application Identity'].isin(unsafe_protocols))
     ]
-
 # Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
 
-if not unsafe_srv.empty:
-    unsafe_srv.to_excel(writer, sheet_name="Un-Safe Protocols", startrow=0)
-    checks_summary.append(f'FAIL - {len(unsafe_srv["Service"])} "Un-Safe Protocols" Rules were found')
-else:
-    checks_summary.append('PASS - No "Un-Safe" Protocols were found in "Service" | "Application Identity" Fields')
+
+# Any Check at Source, Destination & Service Fields
+check(data_frame=any_srv, sheet_name="Any Service", column=["Service"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=any_src, sheet_name="Any Source", column=["Source"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=any_dst, sheet_name="Any Destination", column=["Destination"], pass_msg="PASS", fail_msg="FAIL")
+# Disabled Rules check
+check(data_frame=disabled_rules, sheet_name="Disabled rules", column=["Rule status"], pass_msg="PASS", fail_msg="FAIL")
+# Reject rules check
+check(data_frame=reject_rules, sheet_name="Reject rules", column=["Action"], pass_msg="PASS", fail_msg="FAIL")
+# No Log rules
+check(data_frame=no_log_rules, sheet_name="No Log rules", column=["Track"], pass_msg="PASS", fail_msg="FAIL")
+# Crossed Rules check
+check(data_frame=crossed_rules, sheet_name="Crossed Rules", column=["Source", "Destination", "Service"], pass_msg="PASS", fail_msg="FAIL")
+# Un-Safe Protocols rules
+check(data_frame=unsafe_srv, sheet_name="Un-Safe Protocols", column=["Service"], pass_msg="PASS", fail_msg="FAIL")
+
 
 # Worst Rules - Presence of combination of multiple checks on one rule
 # Example:
 # From "Any" Zone & "Any" Source traffic may proceed to "Any" Zone & "Any" Destination on Any Service | Application
 """Needs Scripting"""
 
-
 # Printing-out summary to console
-for check in checks_summary:
+print("=" * len(max(checks_summary)) * 2)
+print("Audit Checks")
+print("=" * len(max(checks_summary)) * 2)
+
+for check in sorted(checks_summary, reverse=True):
     if check.startswith("PASS"):
         print(colors.get('PASS') + check + colors.get('RESET'))
+        print("-" * len(max(checks_summary)) * 2)
     elif check.startswith("FAIL"):
         print(colors.get('FAIL') + check + colors.get('RESET'))
+        print("-" * len(max(checks_summary)) * 2)
     else:
         pass
 
