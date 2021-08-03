@@ -2,7 +2,6 @@
 
 import os
 import pandas as pd
-from openpyxl.utils.cell import get_column_letter
 
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
@@ -11,7 +10,7 @@ path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 files = [x for x in os.listdir(path=path) if x.endswith(".csv")]
 
 # Adjust encoding if needed
-encoding_files = "windows-1252"
+encoding_files = "windows-1255"
 number = 0
 
 dataframe_list = list()
@@ -29,7 +28,9 @@ while (number := number + 1) < len(files):
         main_frame = pd.read_csv(file, encoding=encoding_files)
 
         # Getting a row number of column set for rules
-        rules = main_frame.index[main_frame["Tufin Object lookup results"] == "Device name"].tolist()
+        # rules = main_frame.index[main_frame["Tufin Object lookup results"] == "Device name"].tolist()
+        rules = main_frame[main_frame.isin(["Device name"]).any(axis="columns")]
+        rules = rules.index.tolist()
 
         # Changing main columns to the identified column for rules
         main_frame.columns = main_frame.iloc[rules[0]]
@@ -74,6 +75,16 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str
         worksheet = writer.sheets[sheet_name]
 
         colorize = ['blue', 'green', 'red']
+
+        # for s, d in zip(data_frame['Source'], data_frame['Destination']):
+        #     if any(data_frame.column == s):
+        #         finding_position = list(data_frame).index(column[0]) + 1
+        #         cell_format = workbook.add_format({'bold': True, 'font_color': 'blue'})
+        #         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+        #     if data_frame[data_frame['Destination'].str.contains(s)]:
+        #         finding_position = list(data_frame).index(column[1]) + 1
+        #         cell_format = workbook.add_format({'bold': True, 'font_color': 'green'})
+        #         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
 
         if len(column) == 3:
             for col, color in zip(column, colorize):
@@ -141,15 +152,35 @@ no_log_rules = new_frame.loc[
     (new_frame['Rule status'] == 'enabled')
     ]
 
-crossed_rules = new_frame.loc[
-    (new_frame['Source'].isin(new_frame['Destination'])) &
-    (new_frame['Rule status'] == 'enabled')
-    ]
+# Un-Done!!! Needs a FIX
+crossed_list = list()
+for src_cross, dst_cross in zip(new_frame['Source'], new_frame['Destination']):
+    crossed_conditions = new_frame.loc[
+        (new_frame['Destination'] == src_cross) &
+        (new_frame['Source'] == dst_cross) &
+        (new_frame['Rule status'] == 'enabled')
+        # ADD Service comparison!
+        ]
+    if not crossed_conditions.empty:
+        for index, row in crossed_conditions.iterrows():
+            crossed_list.append(row.str.lower())
+
+crossed_frame = pd.DataFrame(crossed_list)
+crossed_frame.to_excel(writer, sheet_name='Crossed Rules')
+
+
+# print(sources)
+# print(destinations)
+# crossed_rules = new_frame.loc[
+#     (new_frame['Source'].isin(new_frame['Destination'])) &
+#     (new_frame['Destination'].isin(new_frame['Source'])) &
+#     (new_frame['Rule status'] == 'enabled')
+#     ]
 # There may appear rules with the same Source & Destination but different Protocols,
 # So, this one keeps rules with the same protocols
-crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
-# Sorting rules by Service - for easier view
-crossed_rules = crossed_rules.sort_values('Service')
+# crossed_rules = crossed_rules[crossed_rules.duplicated(['Service'], keep=False)]
+# # Sorting rules by Service - for easier view
+# crossed_rules = crossed_rules.sort_values('Service')
 
 
 # Add as you wish to the list
@@ -172,21 +203,20 @@ unsafe_srv = new_frame.loc[
 # Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
 
-
 # Any Check at Source, Destination & Service Fields
-check(data_frame=any_srv, sheet_name="Any Service", column=["Service"], pass_msg="PASS", fail_msg="FAIL")
-check(data_frame=any_src, sheet_name="Any Source", column=["Source"], pass_msg="PASS", fail_msg="FAIL")
-check(data_frame=any_dst, sheet_name="Any Destination", column=["Destination"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=any_srv, sheet_name="Any Service", column=["Service"], pass_msg="PASS - Any Service", fail_msg="FAIL - Any Service")
+check(data_frame=any_src, sheet_name="Any Source", column=["Source"], pass_msg="PASS - Any Source", fail_msg="FAIL - Any Source")
+check(data_frame=any_dst, sheet_name="Any Destination", column=["Destination"], pass_msg="PASS - Any Destination", fail_msg="FAIL - Any Destination")
 # Disabled Rules check
-check(data_frame=disabled_rules, sheet_name="Disabled rules", column=["Rule status"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=disabled_rules, sheet_name="Disabled rules", column=["Rule status"], pass_msg="PASS - Disabled rules", fail_msg="FAIL - Disabled rules")
 # Reject rules check
-check(data_frame=reject_rules, sheet_name="Reject rules", column=["Action"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=reject_rules, sheet_name="Reject rules", column=["Action"], pass_msg="PASS - Reject rules", fail_msg="FAIL - Reject rules")
 # No Log rules
-check(data_frame=no_log_rules, sheet_name="No Log rules", column=["Track"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=no_log_rules, sheet_name="No Log rules", column=["Track"], pass_msg="PASS - No Log rules", fail_msg="FAIL - No Log rules")
 # Crossed Rules check
-check(data_frame=crossed_rules, sheet_name="Crossed Rules", column=["Source", "Destination", "Service"], pass_msg="PASS", fail_msg="FAIL")
+# check(data_frame=crossed_rules, sheet_name="Crossed Rules", column=["Source", "Destination", "Service"], pass_msg="PASS - Crossed Rules", fail_msg="FAIL - Crossed Rules")
 # Un-Safe Protocols rules
-check(data_frame=unsafe_srv, sheet_name="Un-Safe Protocols", column=["Service"], pass_msg="PASS", fail_msg="FAIL")
+check(data_frame=unsafe_srv, sheet_name="Un-Safe Protocols", column=["Service"], pass_msg="PASS - Un-Safe Protocols", fail_msg="FAIL - Un-Safe Protocols")
 
 
 # Worst Rules - Presence of combination of multiple checks on one rule
