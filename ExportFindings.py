@@ -7,7 +7,6 @@ Open each file and save as .csv again, after that this error will disappear
 import os
 import pandas as pd
 
-
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 
@@ -52,7 +51,7 @@ while (number := number + 1) < len(files):
 new_frame = pd.DataFrame(dataframe_list)
 
 # Removing duplicate Rules from a DataFrame
-new_frame = new_frame.drop_duplicates(subset='SecureTrack Rule UID', keep='first')
+new_frame = new_frame.drop_duplicates(keep='first')
 
 # Writing to all rules to "Rules" sheet
 writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
@@ -89,31 +88,25 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
 
 # Crossed Rules check function
 def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
-
     crossed_list = list()
 
     for src_cross, dst_cross, srv_cross in zip(data_frame['Source'], data_frame['Destination'], data_frame['Service']):
-        try:
-            crossed_conditions = new_frame.loc[
-                (data_frame['Destination'] == src_cross) &
-                (data_frame['Source'] == dst_cross) &
-                (data_frame['Service'] == srv_cross) &
-                (data_frame['Rule status'] == 'enabled')
-                ]
-            # !!! FIX ISSUE !!!
-            if not crossed_conditions.empty:
-                for index, row_enum in crossed_conditions.iterrows():
-                    crossed_list.append(row_enum.str.lower())
-            else:
-                pass
-        except KeyError:
-            print(f"{KeyError} Occurred")
+        crossed_conditions = new_frame.loc[
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Rule status'] == 'enabled')
+            ]
+
+        if not crossed_conditions.empty:
+            for idx, row_enum in crossed_conditions.iterrows():
+                crossed_list.append(row_enum.str.lower())
+        else:
             pass
 
-    if len(crossed_list) > 1:
+    if crossed_list:
         # Appending iterated data to a DataFrame
         crossed_frame = pd.DataFrame(crossed_list)
-
         # Dropping empty columns
         crossed_frame.dropna(how='all', axis=1, inplace=True)
         # Dropping duplicate values based upon rule ID
@@ -157,36 +150,52 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             else:
                 rows_range_true_false.append(False)
 
-        for row_enum, row_data in enumerate(crossed_frame):
-            cross_worksheet.write_row(row_enum, 0, row_data)
-            any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
-            cross_worksheet.set_column(first_col=13, last_col=13, cell_format=any_srv_format)
-            row_fmt = cross_workbook.add_format({'bold': True, 'font_color': 'black'})
-            cross_worksheet.set_row(0, cell_format=row_fmt)
+        for cross_row, row_data in enumerate(crossed_frame):
+            try:
+                cross_worksheet.write_row(cross_row, 0, row_data)
+            except TypeError:
+                pass
 
-            for n, u in zip(rows_range_true_false, unique):
-                if n is True:
-                    fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
-                    cross_worksheet.conditional_format(
-                        f"I2:K{len(crossed_frame)}",
-                        {
-                            'type': 'cell',
-                            'criteria': '==',
-                            'value': f'"{u}"',
-                            'format': fmt
-                        }
-                    )
-                elif n is False:
-                    fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
-                    cross_worksheet.conditional_format(
-                        f"I2:K{len(crossed_frame)}",
-                        {
-                            'type': 'cell',
-                            'criteria': '==',
-                            'value': f'"{u}"',
-                            'format': fmt
-                        }
-                    )
+        positions = [
+            list(crossed_frame)[0].index('Source'),
+            list(crossed_frame)[0].index('Destination'),
+            list(crossed_frame)[0].index('Service')
+        ]
+
+        any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
+        row_fmt = cross_workbook.add_format({'bold': True, 'font_color': 'black'})
+        cross_worksheet.set_column(first_col=positions[2], last_col=positions[2], cell_format=any_srv_format)
+        cross_worksheet.set_row(0, cell_format=row_fmt)
+
+        for n, u in zip(rows_range_true_false, unique):
+            if n is True:
+                fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[0],
+                    last_row=len(crossed_frame),
+                    last_col=positions[1],
+                    options={
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{u}"',
+                        'format': fmt
+                    }
+                )
+            elif n is False:
+                fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[0],
+                    last_row=len(crossed_frame),
+                    last_col=positions[1],
+                    options={
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{u}"',
+                        'format': fmt
+                    }
+                )
 
         checks_summary.append(fail_msg)
     else:
