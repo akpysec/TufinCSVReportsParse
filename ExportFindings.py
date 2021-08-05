@@ -1,13 +1,11 @@
 """
-Run with at least Python 3.8.
+Run with at least Python 3.8, pip install xlsxwriter if needed.
 If "pandas.errors.ParserError: Error tokenizing data. C error: Expected 2 fields in line 10, saw 6 Occurs"
 Open each file and save as .csv again, after that this error will disappear
 """
 
 import os
 import pandas as pd
-import numpy as np
-import xlsxwriter
 
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
