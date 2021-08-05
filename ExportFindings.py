@@ -1,5 +1,5 @@
 """
-Run with at least Python 3.8, pip install xlsxwriter if needed.
+Run with at least Python 3.8.
 If "pandas.errors.ParserError: Error tokenizing data. C error: Expected 2 fields in line 10, saw 6 Occurs"
 Open each file and save as .csv again, after that this error will disappear
 """
@@ -243,11 +243,11 @@ crossed_frame = crossed_frame.sort_values('Service')
 # Writing to a 'Crossed rules' sheet
 # crossed_frame.to_excel(writer, sheet_name='Crossed Rules')
 
-unique = set()
+unique = list()
 
 for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
-    unique.add(sr)
-    unique.add(dst)
+    unique.append(sr)
+    unique.append(dst)
 
 # DataFrame columns to list
 crossed_columns = crossed_frame.columns.tolist()
@@ -261,20 +261,49 @@ cross_worksheet = cross_workbook.add_worksheet('Crossed Rules')
 # # position = list(crossed_frame).index('Source') + 1
 
 colorize = ['green', 'blue']
+total_rows = len(crossed_frame) - 1  # Minus the header / column row
+
+# Creating a list for times to loop - times to loop is total rows without the header
+rows_range = list(range(0, total_rows))
+
+# Creating a switch like check later basing on if a value divisible by 2 - aka True / False
+# This is done only for coloring scheme on Crossed rules
+rows_range_True_False = list()
+
+for tf in rows_range:
+    if (tf % 2) == 0:
+        rows_range_True_False.append(True)
+    else:
+        rows_range_True_False.append(False)
 
 for row, row_data in enumerate(crossed_frame):
     cross_worksheet.write_row(row, 0, row_data)
     any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
     cross_worksheet.set_column(first_col=13, last_col=13, cell_format=any_srv_format)
-    for c, u in zip(colorize, unique):
-        format_ = cross_workbook.add_format({'bold': True, 'font_color': c})
-        cross_worksheet.conditional_format(
-            "I2:K3", {
-                'type': 'cell',
-                'criteria': '==',
-                'value': f'"{u}"',
-                'format': format_}
-        )
+
+    for n, u in zip(rows_range_True_False, unique):
+        if n is True:
+            fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
+            cross_worksheet.conditional_format(
+                f"I2:K{len(crossed_frame)}",
+                {
+                    'type': 'cell',
+                    'criteria': '==',
+                    'value': f'"{u}"',
+                    'format': fmt
+                }
+            )
+        elif n is False:
+            fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
+            cross_worksheet.conditional_format(
+                f"I2:K{len(crossed_frame)}",
+                {
+                    'type': 'cell',
+                    'criteria': '==',
+                    'value': f'"{u}"',
+                    'format': fmt
+                }
+            )
 
 
 # Worst Rules - Presence of combination of multiple checks on one rule
@@ -283,9 +312,10 @@ for row, row_data in enumerate(crossed_frame):
 """Needs Scripting"""
 
 # Printing-out summary to console
-print("=" * len(max(checks_summary)) * 2)
-print("Audit Checks")
-print("=" * len(max(checks_summary)) * 2)
+print(colors.get('WARNING') + "=" * len(max(checks_summary)) * 2 + colors.get('RESET'))
+print(colors.get('WARNING') + "Audit Checks" + colors.get('RESET'))
+print(colors.get('WARNING') + "=" * len(max(checks_summary)) * 2 + colors.get('RESET'))
+print("-" * len(max(checks_summary)) * 2)
 
 for check in sorted(checks_summary, reverse=True):
     if check.startswith("PASS"):
