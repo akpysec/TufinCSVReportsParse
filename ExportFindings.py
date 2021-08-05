@@ -7,6 +7,7 @@ Open each file and save as .csv again, after that this error will disappear
 import os
 import pandas as pd
 
+
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 
@@ -51,7 +52,7 @@ while (number := number + 1) < len(files):
 new_frame = pd.DataFrame(dataframe_list)
 
 # Removing duplicate Rules from a DataFrame
-new_frame = new_frame.drop_duplicates(keep='first')
+new_frame = new_frame.drop_duplicates(subset='SecureTrack Rule UID', keep='first')
 
 # Writing to all rules to "Rules" sheet
 writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
@@ -80,6 +81,112 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
         finding_position = list(data_frame).index(column) + 1
         cell_format = workbook.add_format({'bold': True, 'font_color': 'red'})
         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+
+        checks_summary.append(fail_msg)
+    else:
+        checks_summary.append(pass_msg)
+
+
+# Crossed Rules check function
+def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
+
+    crossed_list = list()
+
+    for src_cross, dst_cross, srv_cross in zip(data_frame['Source'], data_frame['Destination'], data_frame['Service']):
+        try:
+            crossed_conditions = new_frame.loc[
+                (data_frame['Destination'] == src_cross) &
+                (data_frame['Source'] == dst_cross) &
+                (data_frame['Service'] == srv_cross) &
+                (data_frame['Rule status'] == 'enabled')
+                ]
+            # !!! FIX ISSUE !!!
+            if not crossed_conditions.empty:
+                for index, row_enum in crossed_conditions.iterrows():
+                    crossed_list.append(row_enum.str.lower())
+            else:
+                pass
+        except KeyError:
+            print(f"{KeyError} Occurred")
+            pass
+
+    if len(crossed_list) > 1:
+        # Appending iterated data to a DataFrame
+        crossed_frame = pd.DataFrame(crossed_list)
+
+        # Dropping empty columns
+        crossed_frame.dropna(how='all', axis=1, inplace=True)
+        # Dropping duplicate values based upon rule ID
+        crossed_frame = crossed_frame.drop_duplicates(subset='SecureTrack Rule UID', keep="first")
+
+        unique = list()
+
+        # Sorting based on Service
+        crossed_frame = crossed_frame.sort_values('Service')
+
+        # Writing to a 'Crossed rules' sheet
+
+        for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
+            unique.append(sr)
+            unique.append(dst)
+
+        # DataFrame columns to list
+        crossed_columns = crossed_frame.columns.tolist()
+        # DataFrame to list
+        crossed_frame = crossed_frame.values.tolist()
+        # Combining frame lists
+        crossed_frame = [crossed_columns] + crossed_frame
+
+        cross_workbook = writer.book
+        cross_worksheet = cross_workbook.add_worksheet(sheet_name)
+        # # position = list(crossed_frame).index('Source') + 1
+
+        colorize = ['green', 'blue']
+        total_rows = len(crossed_frame) - 1  # Minus the header / column row
+
+        # Creating a list for times to loop - times to loop is total rows without the header
+        rows_range = list(range(0, total_rows))
+
+        # Creating a switch like check later basing on if a value divisible by 2 - aka True / False
+        # This is done only for coloring scheme on Crossed rules
+        rows_range_true_false = list()
+
+        for tf in rows_range:
+            if (tf % 2) == 0:
+                rows_range_true_false.append(True)
+            else:
+                rows_range_true_false.append(False)
+
+        for row_enum, row_data in enumerate(crossed_frame):
+            cross_worksheet.write_row(row_enum, 0, row_data)
+            any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
+            cross_worksheet.set_column(first_col=13, last_col=13, cell_format=any_srv_format)
+            row_fmt = cross_workbook.add_format({'bold': True, 'font_color': 'black'})
+            cross_worksheet.set_row(0, cell_format=row_fmt)
+
+            for n, u in zip(rows_range_true_false, unique):
+                if n is True:
+                    fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
+                    cross_worksheet.conditional_format(
+                        f"I2:K{len(crossed_frame)}",
+                        {
+                            'type': 'cell',
+                            'criteria': '==',
+                            'value': f'"{u}"',
+                            'format': fmt
+                        }
+                    )
+                elif n is False:
+                    fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
+                    cross_worksheet.conditional_format(
+                        f"I2:K{len(crossed_frame)}",
+                        {
+                            'type': 'cell',
+                            'criteria': '==',
+                            'value': f'"{u}"',
+                            'format': fmt
+                        }
+                    )
 
         checks_summary.append(fail_msg)
     else:
@@ -217,92 +324,12 @@ check(
 )
 
 # Crossed Rules check
-crossed_list = list()
-for src_cross, dst_cross, srv_cross in zip(new_frame['Source'], new_frame['Destination'], new_frame['Service']):
-    crossed_conditions = new_frame.loc[
-        (new_frame['Destination'] == src_cross) &
-        (new_frame['Source'] == dst_cross) &
-        (new_frame['Service'] == srv_cross) &
-        (new_frame['Rule status'] == 'enabled')
-        # ADD Service comparison!
-        ]
-    if not crossed_conditions.empty:
-        for index, row in crossed_conditions.iterrows():
-            crossed_list.append(row.str.lower())
-
-# Appending iterated data to a DataFrame
-crossed_frame = pd.DataFrame(crossed_list)
-# Dropping empty columns
-crossed_frame.dropna(how='all', axis=1, inplace=True)
-# Dropping duplicate values based upon rule ID
-crossed_frame = crossed_frame.drop_duplicates(subset='SecureTrack Rule UID', keep="first")
-# Sorting based on Service
-crossed_frame = crossed_frame.sort_values('Service')
-# Writing to a 'Crossed rules' sheet
-# crossed_frame.to_excel(writer, sheet_name='Crossed Rules')
-
-unique = list()
-
-for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
-    unique.append(sr)
-    unique.append(dst)
-
-# DataFrame columns to list
-crossed_columns = crossed_frame.columns.tolist()
-# DataFrame to list
-crossed_frame = crossed_frame.values.tolist()
-# Combining frame lists
-crossed_frame = [crossed_columns] + crossed_frame
-
-cross_workbook = writer.book
-cross_worksheet = cross_workbook.add_worksheet('Crossed Rules')
-# # position = list(crossed_frame).index('Source') + 1
-
-colorize = ['green', 'blue']
-total_rows = len(crossed_frame) - 1  # Minus the header / column row
-
-# Creating a list for times to loop - times to loop is total rows without the header
-rows_range = list(range(0, total_rows))
-
-# Creating a switch like check later basing on if a value divisible by 2 - aka True / False
-# This is done only for coloring scheme on Crossed rules
-rows_range_True_False = list()
-
-for tf in rows_range:
-    if (tf % 2) == 0:
-        rows_range_True_False.append(True)
-    else:
-        rows_range_True_False.append(False)
-
-for row, row_data in enumerate(crossed_frame):
-    cross_worksheet.write_row(row, 0, row_data)
-    any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
-    cross_worksheet.set_column(first_col=13, last_col=13, cell_format=any_srv_format)
-
-    for n, u in zip(rows_range_True_False, unique):
-        if n is True:
-            fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
-            cross_worksheet.conditional_format(
-                f"I2:K{len(crossed_frame)}",
-                {
-                    'type': 'cell',
-                    'criteria': '==',
-                    'value': f'"{u}"',
-                    'format': fmt
-                }
-            )
-        elif n is False:
-            fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
-            cross_worksheet.conditional_format(
-                f"I2:K{len(crossed_frame)}",
-                {
-                    'type': 'cell',
-                    'criteria': '==',
-                    'value': f'"{u}"',
-                    'format': fmt
-                }
-            )
-
+check_crossed(
+    data_frame=new_frame,
+    sheet_name="Crossed Rules",
+    pass_msg="PASS - Crossed Rules",
+    fail_msg="FAIL - Crossed Rules"
+)
 
 # Worst Rules - Presence of combination of multiple checks on one rule
 # Example:
