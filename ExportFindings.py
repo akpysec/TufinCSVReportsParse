@@ -6,6 +6,8 @@ Open each file and save as .csv again, after that this error will disappear
 
 import os
 import pandas as pd
+import numpy as np
+import xlsxwriter
 
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
@@ -239,7 +241,41 @@ crossed_frame = crossed_frame.drop_duplicates(subset='SecureTrack Rule UID', kee
 # Sorting based on Service
 crossed_frame = crossed_frame.sort_values('Service')
 # Writing to a 'Crossed rules' sheet
-crossed_frame.to_excel(writer, sheet_name='Crossed Rules')
+# crossed_frame.to_excel(writer, sheet_name='Crossed Rules')
+
+unique = set()
+
+for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
+    unique.add(sr)
+    unique.add(dst)
+
+# DataFrame columns to list
+crossed_columns = crossed_frame.columns.tolist()
+# DataFrame to list
+crossed_frame = crossed_frame.values.tolist()
+# Combining frame lists
+crossed_frame = [crossed_columns] + crossed_frame
+
+cross_workbook = writer.book
+cross_worksheet = cross_workbook.add_worksheet('Crossed Rules')
+# # position = list(crossed_frame).index('Source') + 1
+
+colorize = ['green', 'blue']
+
+for row, row_data in enumerate(crossed_frame):
+    cross_worksheet.write_row(row, 0, row_data)
+    any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
+    cross_worksheet.set_column(first_col=13, last_col=13, cell_format=any_srv_format)
+    for c, u in zip(colorize, unique):
+        format_ = cross_workbook.add_format({'bold': True, 'font_color': c})
+        cross_worksheet.conditional_format(
+            "I2:K3", {
+                'type': 'cell',
+                'criteria': '==',
+                'value': f'"{u}"',
+                'format': format_}
+        )
+
 
 # Worst Rules - Presence of combination of multiple checks on one rule
 # Example:
