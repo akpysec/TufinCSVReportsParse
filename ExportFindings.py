@@ -115,7 +115,7 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
 
         workbook = writer.book
         worksheet = writer.sheets[sheet_name]
-        finding_position = list(data_frame).index(column) + 1
+        finding_position = list(data_frame).index(column)
         cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
 
