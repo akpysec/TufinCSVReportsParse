@@ -58,12 +58,33 @@ writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
 new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
 
 # Color Definition
+# For Console use
 colors = {
     'PASS': '\033[92m',  # GREEN
     'WARNING': '\033[93m',  # YELLOW
     'FAIL': '\033[91m',  # RED
     'RESET': '\033[0m'  # RESET COLOR
 }
+
+# For in Excel use
+colorize = ["black",    # 0
+            "blue",     # 1
+            "brown",    # 2
+            "cyan",     # 3
+            "gray",     # 4
+            "green",    # 5
+            "lime",     # 6
+            "magenta",  # 7
+            "navy",     # 8
+            "orange",   # 9
+            "pink",     # 10
+            "purple",   # 11
+            "red",      # 12
+            "silver",   # 13
+            "white",    # 14
+            "yellow"    # 15
+            ]
+
 
 # Checks summary list
 checks_summary = list()
@@ -95,7 +116,7 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
         workbook = writer.book
         worksheet = writer.sheets[sheet_name]
         finding_position = list(data_frame).index(column) + 1
-        cell_format = workbook.add_format({'bold': True, 'font_color': 'red'})
+        cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
 
         checks_summary.append(fail_msg + f" | Total Rules found: {data_frame.shape[0]}")
@@ -208,7 +229,6 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         cross_worksheet = cross_workbook.add_worksheet(sheet_name)
         # # position = list(crossed_frame).index('Source') + 1
 
-        colorize = ['purple', 'blue', 'gray']
         total_rows = len(crossed_frame) - 1  # Minus the header / column row
 
         # Creating a list for times to loop - times to loop is total rows without the header
@@ -243,7 +263,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
 
             {
                 'bold': True,
-                'font_color': 'red'
+                'font_color': colorize[12]
             }
         )
 
@@ -251,21 +271,22 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
 
             {
                 'bold': True,
-                'font_color': 'black'
+                'font_color': colorize[0]
             }
         )
 
         cross_worksheet.set_column(first_col=positions[4] - 1, last_col=positions[4], cell_format=any_srv_format)
         cross_worksheet.set_row(0, cell_format=row_fmt)
-        print(rows_range_true_false)
+
         for n, r, z in zip(rows_range_true_false, src_dst_cross, src_z_dst_z):
             if n is True:
                 fmt = cross_workbook.add_format(
                     {
                         'bold': True,
                         'font_color': colorize[0],
-                        'border': True,
-                        'bg_color':  colorize[2]
+                        'border': 2,
+                        'border_color': colorize[0],
+                        'bg_color':  colorize[9]
                     }
                 )
 
@@ -302,9 +323,10 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                 fmt = cross_workbook.add_format(
                     {
                         'bold': True,
-                        'font_color': colorize[1],
-                        'border': True,
-                        'bg_color':  colorize[2]
+                        'font_color': colorize[0],
+                        'border': 2,
+                        'border_color': colorize[0],
+                        'bg_color':  colorize[15]
                     }
                 )
 
@@ -490,6 +512,6 @@ check_crossed(
 """Needs Scripting"""
 
 # Printing-out summary to console
-# console_print(summary=checks_summary)
+console_print(summary=checks_summary)
 
 writer.save()
