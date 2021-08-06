@@ -128,13 +128,14 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
 def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
     crossed_list = list()
 
-    for src_zone, src_cross, dst_zone, dst_cross, srv_cross, app_srv in zip(
+    for src_zone, src_cross, dst_zone, dst_cross, srv_cross, app_srv, act_cross in zip(
             data_frame['From zone'],
             data_frame['Source'],
             data_frame['To zone'],
             data_frame['Destination'],
             data_frame['Service'],
-            data_frame['Application Identity']):
+            data_frame['Application Identity'],
+            data_frame['Action']):
 
         # Check if source zone, destination zone, source, destination are crossed,
         # Source user is not specified & services / app identity are equal,
@@ -150,6 +151,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Source negated'] == 'false') &
             (data_frame['Destination negated'] == 'false') &
             (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
@@ -162,6 +164,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Source negated'] == 'false') &
             (data_frame['Destination negated'] == 'false') &
             (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
@@ -174,6 +177,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Source negated'] == 'false') &
             (data_frame['Destination negated'] == 'false') &
             (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
@@ -186,6 +190,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Source negated'] == 'false') &
             (data_frame['Destination negated'] == 'false') &
             (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             ]
 
@@ -371,11 +376,13 @@ any_srv = new_frame.loc[
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['Application Identity'].isnull())
     |
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['Application Identity'] == 'any')
     ]
 
@@ -384,12 +391,14 @@ any_src = new_frame.loc[
     (new_frame['Source user'].isnull()) &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Source negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['From zone'].isnull())
     |
     (new_frame['Source'] == 'any') &
     (new_frame['Source user'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Source negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['From zone'] == 'any')
     ]
 
@@ -397,11 +406,13 @@ any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Destination negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['To zone'].isnull())
     |
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Destination negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['To zone'] == 'any')
     ]
 
@@ -416,10 +427,12 @@ reject_rules = new_frame.loc[
 
 no_log_rules = new_frame.loc[
     (new_frame['Track'] == 'none') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['Rule status'] == 'enabled')
     ]
 
 # Add as you wish to the list
+# may need adjustments - can't find TCP_80 didn't check yet why 
 unsafe_protocols = [
     'smb',
     'smbv1',
@@ -427,13 +440,18 @@ unsafe_protocols = [
     'telnet',
     'ftp',
     'http',
+    'tcp_80'
     'remote_desktop_protocol',
     'rdp',
     'sshv1'
 ]
 unsafe_srv = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Service'].isin(unsafe_protocols)) |
+    (new_frame['Action'] == 'allow') &
+    (new_frame['Service'].isin(unsafe_protocols))
+    |
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Action'] == 'allow') &
     (new_frame['Application Identity'].isin(unsafe_protocols))
     ]
 # Sorting rules by Service - for easier view
