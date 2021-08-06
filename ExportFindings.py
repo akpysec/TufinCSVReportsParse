@@ -69,6 +69,23 @@ colors = {
 checks_summary = list()
 
 
+def console_print(summary: list):
+    print(colors.get('WARNING') + "=" * len(max(summary)) * 2 + colors.get('RESET'))
+    print(colors.get('WARNING') + "Audit Checks" + colors.get('RESET'))
+    print(colors.get('WARNING') + "=" * len(max(summary)) * 2 + colors.get('RESET'))
+    print("-" * len(max(summary)) * 2)
+
+    for c in sorted(summary, reverse=True):
+        if c.startswith("PASS"):
+            print(colors.get('PASS') + c + colors.get('RESET'))
+            print("-" * len(max(summary)) * 2)
+        elif c.startswith("FAIL"):
+            print(colors.get('FAIL') + c + colors.get('RESET'))
+            print("-" * len(max(summary)) * 2)
+        else:
+            pass
+
+
 # Main Checks function
 def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str, fail_msg: str):
     if not data_frame.empty:
@@ -81,7 +98,7 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
         cell_format = workbook.add_format({'bold': True, 'font_color': 'red'})
         worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
 
-        checks_summary.append(fail_msg)
+        checks_summary.append(fail_msg + f" | Total Rules found: {data_frame.shape[0]}")
     else:
         checks_summary.append(pass_msg)
 
@@ -90,19 +107,55 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str,
 def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
     crossed_list = list()
 
-    for src_cross, dst_cross, srv_cross in zip(data_frame['Source'], data_frame['Destination'], data_frame['Service']):
+    for src_zone, src_cross, dst_zone, dst_cross, srv_cross, app_srv in zip(
+            data_frame['From zone'],
+            data_frame['Source'],
+            data_frame['To zone'],
+            data_frame['Destination'],
+            data_frame['Service'],
+            data_frame['Application Identity']):
+        
+        # NEEDS A FIX - src zone to dst zone checks
+        # Check if source zone, destination zone, source, destination are crossed,
+        # Source user is not specified & services / app identity are equal,
+        # That rule in enabled state & not negated.
         crossed_conditions = new_frame.loc[
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['From zone'] == dst_zone) &
             (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
             (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Source user'].isnull()) &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'].isnull()) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'].isnull()) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Source user'] == 'any') &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == 'any') &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == 'any') &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Source user'] == 'any') &
+            (data_frame['Source negated'] == 'false') &
             (data_frame['Rule status'] == 'enabled')
             ]
 
         if not crossed_conditions.empty:
             for idx, row_enum in crossed_conditions.iterrows():
                 crossed_list.append(row_enum.str.lower())
-        else:
-            pass
+            else:
+                pass
 
     if crossed_list:
         # Appending iterated data to a DataFrame
@@ -134,7 +187,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         cross_worksheet = cross_workbook.add_worksheet(sheet_name)
         # # position = list(crossed_frame).index('Source') + 1
 
-        colorize = ['green', 'blue']
+        colorize = ['purple', 'blue', 'white']
         total_rows = len(crossed_frame) - 1  # Minus the header / column row
 
         # Creating a list for times to loop - times to loop is total rows without the header
@@ -162,20 +215,42 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             list(crossed_frame)[0].index('Service')
         ]
 
-        any_srv_format = cross_workbook.add_format({'bold': True, 'font_color': 'red'})
-        row_fmt = cross_workbook.add_format({'bold': True, 'font_color': 'black'})
-        cross_worksheet.set_column(first_col=positions[2], last_col=positions[2], cell_format=any_srv_format)
+        any_srv_format = cross_workbook.add_format(
+
+            {
+                'bold': True,
+                'font_color': 'red'
+            }
+        )
+
+        row_fmt = cross_workbook.add_format(
+
+            {
+                'bold': True,
+                'font_color': 'black'
+            }
+        )
+
+        cross_worksheet.set_column(first_col=positions[2] - 1, last_col=positions[2], cell_format=any_srv_format)
         cross_worksheet.set_row(0, cell_format=row_fmt)
 
         for n, u in zip(rows_range_true_false, unique):
             if n is True:
-                fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[0]})
+                fmt = cross_workbook.add_format(
+                    {
+                        'bold': True,
+                        'font_color': colorize[0],
+                        'border': True
+                        # 'bg_color':  colorize[2]
+                    }
+                )
                 cross_worksheet.conditional_format(
                     first_row=1,
                     first_col=positions[0],
                     last_row=len(crossed_frame),
                     last_col=positions[1],
-                    options={
+                    options=
+                    {
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{u}"',
@@ -183,13 +258,21 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     }
                 )
             elif n is False:
-                fmt = cross_workbook.add_format({'bold': True, 'font_color': colorize[1]})
+                fmt = cross_workbook.add_format(
+                    {
+                        'bold': True,
+                        'font_color': colorize[1],
+                        'border': True
+                        # 'bg_color':  colorize[2]
+                    }
+                )
                 cross_worksheet.conditional_format(
                     first_row=1,
                     first_col=positions[0],
                     last_row=len(crossed_frame),
                     last_col=positions[1],
-                    options={
+                    options=
+                    {
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{u}"',
@@ -197,17 +280,18 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     }
                 )
 
-        checks_summary.append(fail_msg)
+        checks_summary.append(fail_msg + f" | Total Rules found: {len(rows_range)}")
     else:
         checks_summary.append(pass_msg)
 
 
 # Checks must be "lowercase"
+# Basically filtering column values & then using these filtered DF in the check(dataframe=DF) function
 any_srv = new_frame.loc[
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service negated'] == 'false') &
-    (new_frame['Application Identity'].isnull() == True)
+    (new_frame['Application Identity'].isnull())
     |
     (new_frame['Service'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
@@ -217,11 +301,13 @@ any_srv = new_frame.loc[
 
 any_src = new_frame.loc[
     (new_frame['Source'] == 'any') &
+    (new_frame['Source user'].isnull()) &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Source negated'] == 'false') &
-    (new_frame['From zone'].isnull() == True)
+    (new_frame['From zone'].isnull())
     |
     (new_frame['Source'] == 'any') &
+    (new_frame['Source user'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Source negated'] == 'false') &
     (new_frame['From zone'] == 'any')
@@ -231,7 +317,7 @@ any_dst = new_frame.loc[
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Destination negated'] == 'false') &
-    (new_frame['To zone'].isnull() == True)
+    (new_frame['To zone'].isnull())
     |
     (new_frame['Destination'] == 'any') &
     (new_frame['Rule status'] == 'enabled') &
@@ -346,19 +432,6 @@ check_crossed(
 """Needs Scripting"""
 
 # Printing-out summary to console
-print(colors.get('WARNING') + "=" * len(max(checks_summary)) * 2 + colors.get('RESET'))
-print(colors.get('WARNING') + "Audit Checks" + colors.get('RESET'))
-print(colors.get('WARNING') + "=" * len(max(checks_summary)) * 2 + colors.get('RESET'))
-print("-" * len(max(checks_summary)) * 2)
-
-for check in sorted(checks_summary, reverse=True):
-    if check.startswith("PASS"):
-        print(colors.get('PASS') + check + colors.get('RESET'))
-        print("-" * len(max(checks_summary)) * 2)
-    elif check.startswith("FAIL"):
-        print(colors.get('FAIL') + check + colors.get('RESET'))
-        print("-" * len(max(checks_summary)) * 2)
-    else:
-        pass
+console_print(summary=checks_summary)
 
 writer.save()
