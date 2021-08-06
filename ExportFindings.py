@@ -432,7 +432,8 @@ no_log_rules = new_frame.loc[
     ]
 
 # Add as you wish to the list
-# may need adjustments - can't find TCP_80 didn't check yet why 
+# Problem found - Need to loop over Service within a cell & Un-Safe protocols list & compare
+# for now it's a half check, works only if value in a cell equals value in a unsafe_protocols list
 unsafe_protocols = [
     'smb',
     'smbv1',
@@ -445,6 +446,7 @@ unsafe_protocols = [
     'rdp',
     'sshv1'
 ]
+
 unsafe_srv = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Action'] == 'allow') &
@@ -452,7 +454,7 @@ unsafe_srv = new_frame.loc[
     |
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Action'] == 'allow') &
-    (new_frame['Application Identity'].isin(unsafe_protocols))
+    (new_frame['Service'].isin(unsafe_protocols))   # Problema
     ]
 # Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
