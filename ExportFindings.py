@@ -55,7 +55,7 @@ new_frame = new_frame.drop_duplicates(keep='first')
 
 # Writing to all rules to "Rules" sheet
 writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
-new_frame.to_excel(writer, sheet_name="All Rules", startrow=0)
+new_frame.to_excel(writer, sheet_name="All Rules", startrow=0, index=False)
 
 # Color Definition
 # For Console use
@@ -111,7 +111,7 @@ def console_print(summary: list):
 def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str, fail_msg: str):
     if not data_frame.empty:
         data_frame.dropna(how='all', axis=1, inplace=True)
-        data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0)
+        data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0, index=False)
 
         workbook = writer.book
         worksheet = writer.sheets[sheet_name]
