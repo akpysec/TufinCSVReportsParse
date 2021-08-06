@@ -114,8 +114,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             data_frame['Destination'],
             data_frame['Service'],
             data_frame['Application Identity']):
-        
-        # NEEDS A FIX - src zone to dst zone checks
+
         # Check if source zone, destination zone, source, destination are crossed,
         # Source user is not specified & services / app identity are equal,
         # That rule in enabled state & not negated.
@@ -128,26 +127,44 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Application Identity'].isnull()) &
             (data_frame['Source user'].isnull()) &
             (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
             (data_frame['Rule status'] == 'enabled')
             |
-            (data_frame['From zone'].isnull()) &
+            (data_frame['From zone'] == dst_zone) &
             (data_frame['Source'] == dst_cross) &
-            (data_frame['To zone'].isnull()) &
+            (data_frame['To zone'] == src_zone) &
             (data_frame['Destination'] == src_cross) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'] == 'any') &
             (data_frame['Source user'] == 'any') &
             (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
             (data_frame['Rule status'] == 'enabled')
             |
-            (data_frame['From zone'] == 'any') &
+            (data_frame['From zone'] == dst_zone) &
             (data_frame['Source'] == dst_cross) &
-            (data_frame['To zone'] == 'any') &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Source user'] == 'any') &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
             (data_frame['Destination'] == src_cross) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'] == 'any') &
-            (data_frame['Source user'] == 'any') &
+            (data_frame['Source user'].isnull()) &
             (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
             (data_frame['Rule status'] == 'enabled')
             ]
 
@@ -165,16 +182,20 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         # Dropping duplicate values based upon rule ID
         crossed_frame = crossed_frame.drop_duplicates(subset='SecureTrack Rule UID', keep="first")
 
-        unique = list()
-
+        src_dst_cross = list()
+        src_z_dst_z = list()
         # Sorting based on Service
         crossed_frame = crossed_frame.sort_values('Service')
 
         # Writing to a 'Crossed rules' sheet
 
         for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
-            unique.append(sr)
-            unique.append(dst)
+            src_dst_cross.append(sr)
+            src_dst_cross.append(dst)
+
+        for src_z, dst_z in zip(crossed_frame['From zone'], crossed_frame['To zone']):
+            src_z_dst_z.append(src_z)
+            src_z_dst_z.append(dst_z)
 
         # DataFrame columns to list
         crossed_columns = crossed_frame.columns.tolist()
@@ -187,11 +208,12 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         cross_worksheet = cross_workbook.add_worksheet(sheet_name)
         # # position = list(crossed_frame).index('Source') + 1
 
-        colorize = ['purple', 'blue', 'white']
+        colorize = ['purple', 'blue', 'gray']
         total_rows = len(crossed_frame) - 1  # Minus the header / column row
 
         # Creating a list for times to loop - times to loop is total rows without the header
-        rows_range = list(range(0, total_rows))
+        # Multiplied because of format application to 4 columns instead of 2
+        rows_range = list(range(0, total_rows * 2))
 
         # Creating a switch like check later basing on if a value divisible by 2 - aka True / False
         # This is done only for coloring scheme on Crossed rules
@@ -210,7 +232,9 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                 pass
 
         positions = [
+            list(crossed_frame)[0].index('From zone'),
             list(crossed_frame)[0].index('Source'),
+            list(crossed_frame)[0].index('To zone'),
             list(crossed_frame)[0].index('Destination'),
             list(crossed_frame)[0].index('Service')
         ]
@@ -231,29 +255,46 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             }
         )
 
-        cross_worksheet.set_column(first_col=positions[2] - 1, last_col=positions[2], cell_format=any_srv_format)
+        cross_worksheet.set_column(first_col=positions[4] - 1, last_col=positions[4], cell_format=any_srv_format)
         cross_worksheet.set_row(0, cell_format=row_fmt)
-
-        for n, u in zip(rows_range_true_false, unique):
+        print(rows_range_true_false)
+        for n, r, z in zip(rows_range_true_false, src_dst_cross, src_z_dst_z):
             if n is True:
                 fmt = cross_workbook.add_format(
                     {
                         'bold': True,
                         'font_color': colorize[0],
-                        'border': True
-                        # 'bg_color':  colorize[2]
+                        'border': True,
+                        'bg_color':  colorize[2]
                     }
                 )
+
+                # To zone / From Zone column formatting
                 cross_worksheet.conditional_format(
                     first_row=1,
                     first_col=positions[0],
-                    last_row=len(crossed_frame),
-                    last_col=positions[1],
+                    last_row=total_rows,
+                    last_col=positions[2],
                     options=
                     {
                         'type': 'cell',
                         'criteria': '==',
-                        'value': f'"{u}"',
+                        'value': f'"{z}"',
+                        'format': fmt
+                    }
+                )
+
+                # Source / Destination column formatting
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[1],
+                    last_row=total_rows,
+                    last_col=positions[3],
+                    options=
+                    {
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{r}"',
                         'format': fmt
                     }
                 )
@@ -262,25 +303,42 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     {
                         'bold': True,
                         'font_color': colorize[1],
-                        'border': True
-                        # 'bg_color':  colorize[2]
+                        'border': True,
+                        'bg_color':  colorize[2]
                     }
                 )
+
+                # To zone / From Zone column formatting
                 cross_worksheet.conditional_format(
                     first_row=1,
                     first_col=positions[0],
-                    last_row=len(crossed_frame),
-                    last_col=positions[1],
+                    last_row=total_rows,
+                    last_col=positions[2],
                     options=
                     {
                         'type': 'cell',
                         'criteria': '==',
-                        'value': f'"{u}"',
+                        'value': f'"{z}"',
                         'format': fmt
                     }
                 )
 
-        checks_summary.append(fail_msg + f" | Total Rules found: {len(rows_range)}")
+                # Source / Destination column formatting
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[1],
+                    last_row=total_rows,
+                    last_col=positions[3],
+                    options=
+                    {
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{r}"',
+                        'format': fmt
+                    }
+                )
+
+        checks_summary.append(fail_msg + f" | Total Rules found: {total_rows}")
     else:
         checks_summary.append(pass_msg)
 
@@ -432,6 +490,6 @@ check_crossed(
 """Needs Scripting"""
 
 # Printing-out summary to console
-console_print(summary=checks_summary)
+# console_print(summary=checks_summary)
 
 writer.save()
