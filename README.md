@@ -4,19 +4,19 @@ Automate Security Audits for Tufin Reports.
 Put all your exported Reports.csv in the same folder specify path within the script and execute the script.
 The script will produce .xslx file containing multiple sheets.
 
-* May be written in more elegant fashion,
+* May be written in more elegant fashion
 * More logic can be added
 
-Checks are spread across the sheets:
+## Checks are spread across the sheets:
 
-## Any Service:
+### Any Service:
 - if "any" in service field
 - if rule in enabled state
 - if action is allow / accept
 - if service is not negated
 - if application identity cell is empty / any
 
-## Any Source:
+### Any Source:
 - if "any" in source field
 - if source user cell is empty / any
 - if rule in enabled state
@@ -24,37 +24,37 @@ Checks are spread across the sheets:
 - if source is not negated
 - if from zone cell is empty / any
 
-## Any Destination:
+### Any Destination:
 - if "any" in destination field
 - if rule in enabled state
 - if action is allow / accept
 - if destination is not negated
 - if to zone cell is empty / any
 
-## Disabled Rules:
+### Disabled Rules:
 - if rule in disabled state
   
-## Rules with Reject option:
+### Rules with Reject option:
 - if rule in enabled state
 - if action is reject
  
-## Rules with No Logs:
+### Rules with No Logs:
 - if rule in enabled state
 - if track cell contains none value
 
-## Crossed rules:
+### Crossed rules:
 - if source zone in destination zone field
 - if source in destination field
 - if rule in enabled state
 - if action is allow / accept
 - if rules have the same service
 
-## Un##Safe protocols (You may add to list as you wish):
+### Un###Safe protocols (You may add to list as you wish):
 - if service field contains services d- ifined in a list
 - if rule in enabled state
 - if action is allow / accept
 
-## Worst rules:
+### Worst rules:
 - if "any" object is in source, destination & service fields
 - if rule in enabled state
 - if action is allow / accept
