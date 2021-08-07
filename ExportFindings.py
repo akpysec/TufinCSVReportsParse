@@ -108,16 +108,18 @@ def console_print(summary: list):
 
 
 # Main Checks function
-def check(data_frame: pd.DataFrame, sheet_name: str, column: str, pass_msg: str, fail_msg: str):
+def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str, fail_msg: str):
     if not data_frame.empty:
         data_frame.dropna(how='all', axis=1, inplace=True)
         data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0, index=False)
 
         workbook = writer.book
         worksheet = writer.sheets[sheet_name]
-        finding_position = list(data_frame).index(column)
-        cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
-        worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+
+        for c in column:
+            finding_position = list(data_frame).index(c)
+            cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
+            worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
 
         checks_summary.append(fail_msg + f" | Total Rules found: {data_frame.shape[0]}")
     else:
@@ -471,7 +473,7 @@ for k, v in unsafe_dict.items():
 new_unsafe_dict = dict(new_unsafe_dict)
 
 for key, values in new_unsafe_dict.items():
-    values = str(values).strip("[]")
+    values = str(values).strip("[]")  # Can do better
     unsafe_srv = new_frame.loc[new_frame['SecureTrack Rule UID'] == key]
     unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
 
@@ -594,34 +596,47 @@ unsafe_srv = unsafe.loc[
 # Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
 
+worst_rules = new_frame.loc[
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['Source'] == 'any') &
+    (new_frame['Destination'] == 'any')
+    |
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Action'] == 'allow') &
+    (new_frame['Source'] == 'any') &
+    (new_frame['Destination'] == 'any')
+    ]
+
 # Any Check at Source, Destination & Service Fields
 check(
     data_frame=any_srv,
     sheet_name="Any Service",
-    column="Service",
+    column=["Service"],
     pass_msg="PASS - Any Service",
     fail_msg="FAIL - Any Service"
 )
 check(
     data_frame=any_src,
     sheet_name="Any Source",
-    column="Source",
+    column=["Source"],
     pass_msg="PASS - Any Source",
     fail_msg="FAIL - Any Source"
 )
+
 check(
     data_frame=any_dst,
     sheet_name="Any Destination",
-    column="Destination",
+    column=["Destination"],
     pass_msg="PASS - Any Destination",
     fail_msg="FAIL - Any Destination"
 )
 
-# Disabled Rules check
+# Disabled Rules
 check(
     data_frame=disabled_rules,
     sheet_name="Disabled rules",
-    column="Rule status",
+    column=["Rule status"],
     pass_msg="PASS - Disabled rules",
     fail_msg="FAIL - Disabled rules"
 )
@@ -630,7 +645,7 @@ check(
 check(
     data_frame=reject_rules,
     sheet_name="Reject rules",
-    column="Action",
+    column=["Action"],
     pass_msg="PASS - Reject rules",
     fail_msg="FAIL - Reject rules"
 )
@@ -639,7 +654,7 @@ check(
 check(
     data_frame=no_log_rules,
     sheet_name="No Log rules",
-    column="Track",
+    column=["Track"],
     pass_msg="PASS - No Log rules",
     fail_msg="FAIL - No Log rules"
 )
@@ -648,7 +663,7 @@ check(
 check(
     data_frame=unsafe_srv,
     sheet_name="Un-Safe Protocols",
-    column="Service",
+    column=["Service"],
     pass_msg="PASS - Un-Safe Protocols",
     fail_msg="FAIL - Un-Safe Protocols"
 )
@@ -664,7 +679,17 @@ check_crossed(
 # Worst Rules - Presence of combination of multiple checks on one rule
 # Example:
 # From "Any" Zone & "Any" Source traffic may proceed to "Any" Zone & "Any" Destination on Any Service | Application
-"""Needs Scripting"""
+check(
+    data_frame=worst_rules,
+    sheet_name="Worst Rules",
+    column=[
+            'Source',
+            'Destination',
+            'Service'
+            ],
+    pass_msg="PASS - Worst Rules",
+    fail_msg="FAIL - Worst Rules"
+)
 
 # Printing-out summary to console
 console_print(summary=checks_summary)
