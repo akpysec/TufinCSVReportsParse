@@ -667,6 +667,6 @@ check_crossed(
 """Needs Scripting"""
 
 # Printing-out summary to console
-# console_print(summary=checks_summary)
+console_print(summary=checks_summary)
 
 writer.save()
