@@ -49,8 +49,8 @@ The script will produce .xslx file containing multiple sheets.
 - if action is allow / accept
 - if rules have the same service
 
-### Un###Safe protocols (You may add to list as you wish):
-- if service field contains services d- ifined in a list
+### Un-Safe protocols (You may add to list as you wish):
+- if service field contains services difined in a list
 - if rule in enabled state
 - if action is allow / accept
 
