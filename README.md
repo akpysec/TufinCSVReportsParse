@@ -59,4 +59,9 @@ The script will produce .xslx file containing multiple sheets.
 - if rule in enabled state
 - if action is allow / accept
 
-Enjoy :)
+### How to run:
+- Set path variable inside the script to folder that contains reports.csv
+- Run 'python ExportFindings.py' 
+
+
+### Enjoy :)
