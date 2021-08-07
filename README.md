@@ -61,7 +61,7 @@ The script will produce .xslx file containing multiple sheets.
 
 ### How to run:
 - Set path variable inside the script to folder that contains reports.csv
-- Run `python ExportFindings.py`
+- Run - `python ExportFindings.py`
 
 
 ### Enjoy :)
