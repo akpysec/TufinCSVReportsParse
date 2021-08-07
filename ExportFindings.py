@@ -3,9 +3,10 @@ Run with at least Python 3.8, pip install xlsxwriter if needed.
 If "pandas.errors.ParserError: Error tokenizing data. C error: Expected 2 fields in line 10, saw 6 Occurs"
 Open each file and save as .csv again, after that this error will disappear
 """
-
+import collections
 import os
 import pandas as pd
+
 
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
@@ -51,7 +52,7 @@ while (number := number + 1) < len(files):
 new_frame = pd.DataFrame(dataframe_list)
 
 # Removing duplicate Rules from a DataFrame
-new_frame = new_frame.drop_duplicates(keep='first')
+new_frame = new_frame.drop_duplicates(subset='SecureTrack Rule UID', keep='first')
 
 # Writing to all rules to "Rules" sheet
 writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
@@ -67,24 +68,23 @@ colors = {
 }
 
 # For in Excel use
-colorize = ["black",    # 0
-            "blue",     # 1
-            "brown",    # 2
-            "cyan",     # 3
-            "gray",     # 4
-            "green",    # 5
-            "lime",     # 6
+colorize = ["black",  # 0
+            "blue",  # 1
+            "brown",  # 2
+            "cyan",  # 3
+            "gray",  # 4
+            "green",  # 5
+            "lime",  # 6
             "magenta",  # 7
-            "navy",     # 8
-            "orange",   # 9
-            "pink",     # 10
-            "purple",   # 11
-            "red",      # 12
-            "silver",   # 13
-            "white",    # 14
-            "yellow"    # 15
+            "navy",  # 8
+            "orange",  # 9
+            "pink",  # 10
+            "purple",  # 11
+            "red",  # 12
+            "silver",  # 13
+            "white",  # 14
+            "yellow"  # 15
             ]
-
 
 # Checks summary list
 checks_summary = list()
@@ -192,6 +192,58 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
             (data_frame['Service negated'] == 'false') &
             (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Source user'].isnull()) &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Source user'] == 'any') &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Source user'] == 'any') &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst_cross) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src_cross) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Source user'].isnull()) &
+            (data_frame['Source negated'] == 'false') &
+            (data_frame['Destination negated'] == 'false') &
+            (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
             ]
 
         if not crossed_conditions.empty:
@@ -291,7 +343,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                         'font_color': colorize[0],
                         'border': 2,
                         'border_color': colorize[0],
-                        'bg_color':  colorize[9]
+                        'bg_color': colorize[9]
                     }
                 )
 
@@ -331,7 +383,7 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                         'font_color': colorize[0],
                         'border': 2,
                         'border_color': colorize[0],
-                        'bg_color':  colorize[15]
+                        'bg_color': colorize[15]
                     }
                 )
 
@@ -370,6 +422,64 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         checks_summary.append(pass_msg)
 
 
+# Add as you wish to the list
+unsafe_protocols = [
+    'smb',
+    'smbv1',
+    'smb_v1',
+    'microsoft-ds',
+    'telnet',
+    'ftp',
+    'http',
+    'tcp_80',
+    'remote_desktop_protocol',
+    'rdp',
+    'sshv1',
+    'ssh_v1'
+]
+
+unsafe_dict = dict()
+new_unsafe_dict = collections.defaultdict(list)
+tmp = list()
+
+# Creating dictionary UID: [Service_1, Service_2, etc]
+for srv, uid in zip(new_frame['Service'], new_frame['SecureTrack Rule UID']):
+    unsafe_dict[uid] = srv.split("\n")
+
+# Checking if more than 1 item in Value list, if it's only http or http\nssh\smb\n etc..
+# And comparing to items in a list, on both fronts (if multiple values in a list or a single)
+for k, v in unsafe_dict.items():
+    for un in unsafe_protocols:
+
+        # If multiple items in a list, iterate over them and compare
+        if len(v) > 1:
+            for value in v:
+                founded_values = list()
+                if value == un:
+                    founded_values.append(value)
+                    # Using collection lib for adding list to a dictionary value, list of protocols / ports found
+                    new_unsafe_dict[k].append(*founded_values)
+
+        # If single item in a list, select[0] and compare
+        elif len(v) < 2:
+            founded_values = list()
+            if v[0] == un:
+                founded_values.append(un)
+                new_unsafe_dict[k].append(*founded_values)
+
+# Switching type from collections to standard dict
+new_unsafe_dict = dict(new_unsafe_dict)
+
+for key, values in new_unsafe_dict.items():
+    values = str(values).strip("[]")
+    unsafe_srv = new_frame.loc[new_frame['SecureTrack Rule UID'] == key]
+    unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
+
+    for index, row in unsafe_srv.iterrows():
+        tmp.append(row.str.lower())
+
+unsafe = pd.DataFrame(tmp)
+
 # Checks must be "lowercase"
 # Basically filtering column values & then using these filtered DF in the check(dataframe=DF) function
 any_srv = new_frame.loc[
@@ -383,6 +493,18 @@ any_srv = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Service negated'] == 'false') &
     (new_frame['Action'] == 'allow') &
+    (new_frame['Application Identity'] == 'any')
+    |
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['Application Identity'].isnull())
+    |
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
     (new_frame['Application Identity'] == 'any')
     ]
 
@@ -400,6 +522,20 @@ any_src = new_frame.loc[
     (new_frame['Source negated'] == 'false') &
     (new_frame['Action'] == 'allow') &
     (new_frame['From zone'] == 'any')
+    |
+    (new_frame['Source'] == 'any') &
+    (new_frame['Source user'].isnull()) &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Source negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['From zone'].isnull())
+    |
+    (new_frame['Source'] == 'any') &
+    (new_frame['Source user'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Source negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['From zone'] == 'any')
     ]
 
 any_dst = new_frame.loc[
@@ -413,6 +549,18 @@ any_dst = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Destination negated'] == 'false') &
     (new_frame['Action'] == 'allow') &
+    (new_frame['To zone'] == 'any')
+    |
+    (new_frame['Destination'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Destination negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['To zone'].isnull())
+    |
+    (new_frame['Destination'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Destination negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
     (new_frame['To zone'] == 'any')
     ]
 
@@ -429,33 +577,20 @@ no_log_rules = new_frame.loc[
     (new_frame['Track'] == 'none') &
     (new_frame['Action'] == 'allow') &
     (new_frame['Rule status'] == 'enabled')
-    ]
-
-# Add as you wish to the list
-# Problem found - Need to loop over Service within a cell & Un-Safe protocols list & compare
-# for now it's a half check, works only if value in a cell equals value in a unsafe_protocols list
-unsafe_protocols = [
-    'smb',
-    'smbv1',
-    'microsoft-ds',
-    'telnet',
-    'ftp',
-    'http',
-    'tcp_80'
-    'remote_desktop_protocol',
-    'rdp',
-    'sshv1'
-]
-
-unsafe_srv = new_frame.loc[
-    (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Action'] == 'allow') &
-    (new_frame['Service'].isin(unsafe_protocols))
     |
-    (new_frame['Rule status'] == 'enabled') &
-    (new_frame['Action'] == 'allow') &
-    (new_frame['Service'].isin(unsafe_protocols))   # Problema
+    (new_frame['Track'] == 'none') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['Rule status'] == 'enabled')
     ]
+
+unsafe_srv = unsafe.loc[
+    (unsafe['Rule status'] == 'enabled') &
+    (unsafe['Action'] == 'allow')
+    |
+    (unsafe['Rule status'] == 'enabled') &
+    (unsafe['Action'] == 'accept')
+    ]
+
 # Sorting rules by Service - for easier view
 unsafe_srv = unsafe_srv.sort_values('Service')
 
@@ -532,6 +667,6 @@ check_crossed(
 """Needs Scripting"""
 
 # Printing-out summary to console
-console_print(summary=checks_summary)
+# console_print(summary=checks_summary)
 
 writer.save()
