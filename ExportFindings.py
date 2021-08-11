@@ -508,6 +508,18 @@ any_srv = new_frame.loc[
     (new_frame['Service negated'] == 'false') &
     (new_frame['Action'] == 'accept') &
     (new_frame['Application Identity'] == 'any')
+    |
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'allow') &
+    (new_frame['Application Identity'] == 'application-default')
+    |
+    (new_frame['Service'] == 'any') &
+    (new_frame['Rule status'] == 'enabled') &
+    (new_frame['Service negated'] == 'false') &
+    (new_frame['Action'] == 'accept') &
+    (new_frame['Application Identity'] == 'application-default')
     ]
 
 any_src = new_frame.loc[
