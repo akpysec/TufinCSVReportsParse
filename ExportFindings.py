@@ -129,121 +129,184 @@ def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str
 def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
     crossed_list = list()
 
-    for src_zone, src_cross, dst_zone, dst_cross, srv_cross, app_srv, act_cross in zip(
+    for src_zone, src, dst_zone, dst, srv_cross, app_srv, act_cross, status in zip(
             data_frame['From zone'],
             data_frame['Source'],
             data_frame['To zone'],
             data_frame['Destination'],
             data_frame['Service'],
             data_frame['Application Identity'],
-            data_frame['Action']):
+            data_frame['Action'],
+            data_frame['Rule status']):
 
         # Check if source zone, destination zone, source, destination are crossed,
         # Source user is not specified & services / app identity are equal,
         # That rule in enabled state & not negated.
         crossed_conditions = new_frame.loc[
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
+            (data_frame['Source'] == dst) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'].isnull()) &
-            (data_frame['Source user'].isnull()) &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
             (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
+            (data_frame['Source'] == dst) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Destination'] == src) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'] == 'any') &
-            (data_frame['Source user'] == 'any') &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
             (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
+            (data_frame['Source'] == dst) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
-            (data_frame['Application Identity'].isnull()) &
-            (data_frame['Source user'] == 'any') &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['Source'] == dst) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'application-default') &
             (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
+            (data_frame['Source'] == dst) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
-            (data_frame['Application Identity'] == 'any') &
-            (data_frame['Source user'].isnull()) &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
+            (data_frame['Application Identity'] == 'application-default') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == dst) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Action'] == 'allow') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
             (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'].isnull()) &
-            (data_frame['Source user'].isnull()) &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
-            (data_frame['Action'] == 'accept') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             |
-            (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == dst) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
-            (data_frame['Service'] == srv_cross) &
-            (data_frame['Application Identity'] == 'any') &
-            (data_frame['Source user'] == 'any') &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
-            (data_frame['Action'] == 'accept') &
-            (data_frame['Rule status'] == 'enabled')
-            |
-            (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
-            (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'].isnull()) &
-            (data_frame['Source user'] == 'any') &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
             (data_frame['Action'] == 'accept') &
             (data_frame['Rule status'] == 'enabled')
             |
             (data_frame['From zone'] == dst_zone) &
-            (data_frame['Source'] == dst_cross) &
             (data_frame['To zone'] == src_zone) &
-            (data_frame['Destination'] == src_cross) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'].isnull()) &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == dst) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src) &
             (data_frame['Service'] == srv_cross) &
             (data_frame['Application Identity'] == 'any') &
-            (data_frame['Source user'].isnull()) &
-            (data_frame['Source negated'] == 'false') &
-            (data_frame['Destination negated'] == 'false') &
-            (data_frame['Service negated'] == 'false') &
             (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'accept') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == dst) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Destination'] == src) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'allow') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == data_frame['To zone']) &
+            (data_frame['To zone'] == data_frame['From zone']) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'allow') &
+            (data_frame['Rule status'] == 'enabled')
+            |
+            (data_frame['From zone'] == dst_zone) &
+            (data_frame['To zone'] == src_zone) &
+            (data_frame['Source'] == data_frame['Destination']) &
+            (data_frame['Destination'] == data_frame['Source']) &
+            (data_frame['Service'] == srv_cross) &
+            (data_frame['Application Identity'] == 'any') &
+            (data_frame['Action'] == 'allow') &
             (data_frame['Rule status'] == 'enabled')
             ]
 
@@ -409,7 +472,8 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                         'value': f'"{r}"',
                         'format': fmt}
                 )
-
+            else:
+                pass
         checks_summary.append(fail_msg + f" | Total Rules found: {total_rows}")
     else:
         checks_summary.append(pass_msg)
