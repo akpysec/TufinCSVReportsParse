@@ -24,7 +24,7 @@ dataframe_list = list()
 # SettingWithCopyWarning - Appeared when a .drop empty columns method was called before .to_excel method call
 pd.set_option('mode.chained_assignment', None)
 
-while (number := number + 1) < len(files):
+while (number := number + 1) <= len(files):
     for f in files:
         file = path + f
 
