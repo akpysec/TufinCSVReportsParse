@@ -7,7 +7,6 @@ import collections
 import os
 import pandas as pd
 
-
 # Specify path to .csv Reports
 path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 
@@ -355,13 +354,11 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_col=positions[0],
                     last_row=total_rows,
                     last_col=positions[2],
-                    options=
-                    {
+                    options={
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{z}"',
-                        'format': fmt
-                    }
+                        'format': fmt}
                 )
 
                 # Source / Destination column formatting
@@ -370,13 +367,11 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_col=positions[1],
                     last_row=total_rows,
                     last_col=positions[3],
-                    options=
-                    {
+                    options={
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{r}"',
-                        'format': fmt
-                    }
+                        'format': fmt}
                 )
             elif n is False:
                 fmt = cross_workbook.add_format(
@@ -395,13 +390,11 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_col=positions[0],
                     last_row=total_rows,
                     last_col=positions[2],
-                    options=
-                    {
+                    options={
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{z}"',
-                        'format': fmt
-                    }
+                        'format': fmt}
                 )
 
                 # Source / Destination column formatting
@@ -410,13 +403,11 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_col=positions[1],
                     last_row=total_rows,
                     last_col=positions[3],
-                    options=
-                    {
+                    options={
                         'type': 'cell',
                         'criteria': '==',
                         'value': f'"{r}"',
-                        'format': fmt
-                    }
+                        'format': fmt}
                 )
 
         checks_summary.append(fail_msg + f" | Total Rules found: {total_rows}")
@@ -695,10 +686,10 @@ check(
     data_frame=worst_rules,
     sheet_name="Worst Rules",
     column=[
-            'Source',
-            'Destination',
-            'Service'
-            ],
+        'Source',
+        'Destination',
+        'Service'
+    ],
     pass_msg="PASS - Worst Rules",
     fail_msg="FAIL - Worst Rules"
 )
