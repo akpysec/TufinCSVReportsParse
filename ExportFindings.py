@@ -8,7 +8,7 @@ import os
 import pandas as pd
 
 # Specify path to .csv Reports
-path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
+path = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
 
 # Iterate over .csv files in a path
 files = [x for x in os.listdir(path=path) if x.endswith(".csv")]
