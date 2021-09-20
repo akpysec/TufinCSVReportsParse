@@ -7,14 +7,13 @@ import collections
 import os
 import pandas as pd
 
-
 try:
     # Specify path to .csv Reports
-    path = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
+    path_to_files = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
     # path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 
     # Iterate over .csv files in a path
-    files = [x for x in os.listdir(path=path) if x.endswith(".csv")]
+    files = [x for x in os.listdir(path=path_to_files) if x.endswith(".csv")]
 
     # Adjust encoding if needed
     encoding_files = "windows-1255"
@@ -29,7 +28,7 @@ try:
 
     while (number := number + 1) <= len(files):
         for f in files:
-            file = path + f
+            file = path_to_files + f
 
             # Reading files
             main_frame = pd.read_csv(file, encoding=encoding_files)
@@ -57,7 +56,7 @@ try:
     new_frame = new_frame.drop_duplicates(subset='SecureTrack Rule UID', keep='first')
 
     # Writing to all rules to "Rules" sheet
-    writer = pd.ExcelWriter(path + "Parsed_Rules.xlsx", engine='xlsxwriter')
+    writer = pd.ExcelWriter(path_to_files + "Parsed_Rules.xlsx", engine='xlsxwriter')
     new_frame.to_excel(writer, sheet_name="All Rules", startrow=0, index=False)
 
     # Color Definition
@@ -108,7 +107,6 @@ try:
             else:
                 pass
 
-
     # Main Checks function
     def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str, fail_msg: str):
         if not isinstance(data_frame, pd.DataFrame):
@@ -132,7 +130,6 @@ try:
                 checks_summary.append(pass_msg)
         else:
             print('Something else happened')
-
 
     # Crossed Rules check function
     def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail_msg: str):
@@ -410,7 +407,7 @@ try:
 
             crossed_frame = pd.DataFrame(crossed_frame)
             crossed_frame.columns = crossed_columns
-            crossed_frame = crossed_frame.drop(axis=0, index=0)
+            crossed_frame.drop(axis=0, index=0)
 
             for n, r, z in zip(rows_range_true_false, src_dst_cross, src_z_dst_z):
                 if n is True:
@@ -539,7 +536,8 @@ try:
                         founded_values = list()
                         if value == un:
                             founded_values.append(value)
-                            # Using collection lib for adding list to a dictionary value, list of protocols / ports found
+                            # Using collection lib for adding list to a dictionary value,
+                            # list of protocols / ports found
                             new_unsafe_dict[k].append(*founded_values)
 
                 # If single item in a list, select[0] and compare
@@ -557,8 +555,8 @@ try:
             unsafe_srv = data_frame.loc[data_frame['SecureTrack Rule UID'] == key]
             unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
 
-            for index, row in unsafe_srv.iterrows():
-                tmp.append(row.str.lower())
+            for i, r in unsafe_srv.iterrows():
+                tmp.append(r.str.lower())
 
         unsafe = pd.DataFrame(tmp)
 
@@ -813,4 +811,4 @@ try:
     writer.save()
 
 except FileNotFoundError:
-    print(f'Wrong path - "{path}" or Files are missing, \nCheck yourself & re-run the program')
+    print(f'Wrong path - "{path_to_files}" (or files are missing), \nCheck yourself & re-run the program')
