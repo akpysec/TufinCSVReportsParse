@@ -9,6 +9,7 @@ import pandas as pd
 
 # Specify path to .csv Reports
 path = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
+# path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
 
 # Iterate over .csv files in a path
 files = [x for x in os.listdir(path=path) if x.endswith(".csv")]
@@ -108,21 +109,27 @@ def console_print(summary: list):
 
 # Main Checks function
 def check(data_frame: pd.DataFrame, sheet_name: str, column: list, pass_msg: str, fail_msg: str):
-    if not data_frame.empty:
-        data_frame.dropna(how='all', axis=1, inplace=True)
-        data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0, index=False)
-
-        workbook = writer.book
-        worksheet = writer.sheets[sheet_name]
-
-        for c in column:
-            finding_position = list(data_frame).index(c)
-            cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
-            worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
-
-        checks_summary.append(fail_msg + f" | Total Rules found: {data_frame.shape[0]}")
-    else:
+    if not isinstance(data_frame, pd.DataFrame):
         checks_summary.append(pass_msg)
+        pass
+    elif isinstance(data_frame, pd.DataFrame):
+        if not data_frame.empty:
+            data_frame.dropna(how='all', axis=1, inplace=True)
+            data_frame.to_excel(writer, sheet_name=sheet_name, startrow=0, index=False)
+
+            workbook = writer.book
+            worksheet = writer.sheets[sheet_name]
+
+            for c in column:
+                finding_position = list(data_frame).index(c)
+                cell_format = workbook.add_format({'bold': True, 'font_color': colorize[12]})
+                worksheet.set_column(first_col=finding_position, last_col=finding_position, cell_format=cell_format)
+
+            checks_summary.append(fail_msg + f" | Total Rules found: {data_frame.shape[0]}")
+        else:
+            checks_summary.append(pass_msg)
+    else:
+        print('Something else happened')
 
 
 # Crossed Rules check function
@@ -399,6 +406,10 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
         cross_worksheet.set_column(first_col=positions[4] - 1, last_col=positions[4], cell_format=any_srv_format)
         cross_worksheet.set_row(0, cell_format=row_fmt)
 
+        crossed_frame = pd.DataFrame(crossed_frame)
+        crossed_frame.columns = crossed_columns
+        crossed_frame = crossed_frame.drop(axis=0, index=0)
+
         for n, r, z in zip(rows_range_true_false, src_dst_cross, src_z_dst_z):
             if n is True:
                 fmt = cross_workbook.add_format(
@@ -416,6 +427,18 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_row=1,
                     first_col=positions[0],
                     last_row=total_rows,
+                    last_col=positions[0],
+                    options={
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{z}"',
+                        'format': fmt}
+                )
+                # To zone / From Zone column formatting
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[2],
+                    last_row=total_rows,
                     last_col=positions[2],
                     options={
                         'type': 'cell',
@@ -423,7 +446,6 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                         'value': f'"{z}"',
                         'format': fmt}
                 )
-
                 # Source / Destination column formatting
                 cross_worksheet.conditional_format(
                     first_row=1,
@@ -452,6 +474,18 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                     first_row=1,
                     first_col=positions[0],
                     last_row=total_rows,
+                    last_col=positions[0],
+                    options={
+                        'type': 'cell',
+                        'criteria': '==',
+                        'value': f'"{z}"',
+                        'format': fmt}
+                )
+                # To zone / From Zone column formatting
+                cross_worksheet.conditional_format(
+                    first_row=1,
+                    first_col=positions[2],
+                    last_row=total_rows,
                     last_col=positions[2],
                     options={
                         'type': 'cell',
@@ -472,70 +506,78 @@ def check_crossed(data_frame: pd.DataFrame, sheet_name: str, pass_msg: str, fail
                         'value': f'"{r}"',
                         'format': fmt}
                 )
+
             else:
                 pass
+
         checks_summary.append(fail_msg + f" | Total Rules found: {total_rows}")
     else:
         checks_summary.append(pass_msg)
 
 
-# Add as you wish to the list
-unsafe_protocols = [
-    'smb',
-    'smbv1',
-    'smb_v1',
-    'microsoft-ds',
-    'telnet',
-    'ftp',
-    'http',
-    'tcp_80',
-    'remote_desktop_protocol',
-    'rdp',
-    'sshv1',
-    'ssh_v1'
-]
+def unsafe_protocols(data_frame: pd.DataFrame, protocols: list):
+    # Add as you wish to the list
 
-unsafe_dict = dict()
-new_unsafe_dict = collections.defaultdict(list)
-tmp = list()
+    unsafe_dict = dict()
+    new_unsafe_dict = collections.defaultdict(list)
+    tmp = list()
 
-# Creating dictionary UID: [Service_1, Service_2, etc]
-for srv, uid in zip(new_frame['Service'], new_frame['SecureTrack Rule UID']):
-    unsafe_dict[uid] = srv.split("\n")
+    # Creating dictionary UID: [Service_1, Service_2, etc]
+    for srv, uid in zip(data_frame['Service'], data_frame['SecureTrack Rule UID']):
+        unsafe_dict[uid] = srv.split("\n")
 
-# Checking if more than 1 item in Value list, if it's only http or http\nssh\smb\n etc..
-# And comparing to items in a list, on both fronts (if multiple values in a list or a single)
-for k, v in unsafe_dict.items():
-    for un in unsafe_protocols:
+    # Checking if more than 1 item in Value list, if it's only http or http\nssh\smb\n etc..
+    # And comparing to items in a list, on both fronts (if multiple values in a list or a single)
+    for k, v in unsafe_dict.items():
+        for un in protocols:
 
-        # If multiple items in a list, iterate over them and compare
-        if len(v) > 1:
-            for value in v:
+            # If multiple items in a list, iterate over them and compare
+            if len(v) > 1:
+                for value in v:
+                    founded_values = list()
+                    if value == un:
+                        founded_values.append(value)
+                        # Using collection lib for adding list to a dictionary value, list of protocols / ports found
+                        new_unsafe_dict[k].append(*founded_values)
+
+            # If single item in a list, select[0] and compare
+            elif len(v) < 2:
                 founded_values = list()
-                if value == un:
-                    founded_values.append(value)
-                    # Using collection lib for adding list to a dictionary value, list of protocols / ports found
+                if v[0] == un:
+                    founded_values.append(un)
                     new_unsafe_dict[k].append(*founded_values)
 
-        # If single item in a list, select[0] and compare
-        elif len(v) < 2:
-            founded_values = list()
-            if v[0] == un:
-                founded_values.append(un)
-                new_unsafe_dict[k].append(*founded_values)
+    # Switching type from collections to standard dict
+    new_unsafe_dict = dict(new_unsafe_dict)
 
-# Switching type from collections to standard dict
-new_unsafe_dict = dict(new_unsafe_dict)
+    for key, values in new_unsafe_dict.items():
+        values = str(values).strip("[]")  # Can do better
+        unsafe_srv = data_frame.loc[data_frame['SecureTrack Rule UID'] == key]
+        unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
 
-for key, values in new_unsafe_dict.items():
-    values = str(values).strip("[]")  # Can do better
-    unsafe_srv = new_frame.loc[new_frame['SecureTrack Rule UID'] == key]
-    unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
+        for index, row in unsafe_srv.iterrows():
+            tmp.append(row.str.lower())
 
-    for index, row in unsafe_srv.iterrows():
-        tmp.append(row.str.lower())
+    unsafe = pd.DataFrame(tmp)
 
-unsafe = pd.DataFrame(tmp)
+    if not unsafe.empty:
+        # return unsafe
+        unsafe_srv = unsafe.loc[
+            (unsafe['Rule status'] == 'enabled') &
+            (unsafe['Action'] == 'allow')
+            |
+            (unsafe['Rule status'] == 'enabled') &
+            (unsafe['Action'] == 'accept')
+            ]
+
+        # Sorting rules by Service - for easier view
+        unsafe_srv = unsafe_srv.sort_values('Service')
+
+        return unsafe_srv
+    else:
+        # print('Dataframe unsafe is empty')
+        pass
+
 
 # Checks must be "lowercase"
 # Basically filtering column values & then using these filtered DF in the check(dataframe=DF) function
@@ -652,17 +694,6 @@ no_log_rules = new_frame.loc[
     (new_frame['Rule status'] == 'enabled')
     ]
 
-unsafe_srv = unsafe.loc[
-    (unsafe['Rule status'] == 'enabled') &
-    (unsafe['Action'] == 'allow')
-    |
-    (unsafe['Rule status'] == 'enabled') &
-    (unsafe['Action'] == 'accept')
-    ]
-
-# Sorting rules by Service - for easier view
-unsafe_srv = unsafe_srv.sort_values('Service')
-
 worst_rules = new_frame.loc[
     (new_frame['Rule status'] == 'enabled') &
     (new_frame['Action'] == 'accept') &
@@ -728,7 +759,23 @@ check(
 
 # Un-Safe Protocols rules
 check(
-    data_frame=unsafe_srv,
+    data_frame=unsafe_protocols(
+        data_frame=new_frame,
+        protocols=[
+            'smb',
+            'smbv1',
+            'smb_v1',
+            'microsoft-ds',
+            'telnet',
+            'ftp',
+            'http',
+            'tcp_80',
+            'remote_desktop_protocol',
+            'rdp',
+            'sshv1',
+            'ssh_v1'
+        ],
+    ),
     sheet_name="Un-Safe Protocols",
     column=["Service"],
     pass_msg="PASS - Un-Safe Protocols",
