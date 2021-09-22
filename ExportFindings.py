@@ -2,6 +2,8 @@
 Run with at least Python 3.8, pip install xlsxwriter if needed.
 If "pandas.errors.ParserError: Error tokenizing data. C error: Expected 2 fields in line 10, saw 6 Occurs"
 Open each file and save as .csv again, after that this error will disappear
+Good to know - Microsoft Excel doesn't approve more than 150 chars in a cell when conditional formatting is applied,
+so the script will not be able to fill color to those fields, but the check still be performed.
 """
 import collections
 import os
