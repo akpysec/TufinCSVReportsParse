@@ -823,7 +823,7 @@ try:
         writer.save()
 
     elif len(path_to_files) < 2:
-        print("No characters were entered, \nPlease enter a legitimate path.")
+        print("No characters were entered, \nPlease enter a legitimate path & re-run the program.")
 
 except FileNotFoundError:
     print(f'Wrong path - "{_path_to_files[0]}" (or files are missing), \nCheck yourself & re-run the program')
