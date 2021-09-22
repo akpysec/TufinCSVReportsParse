@@ -60,8 +60,9 @@ The script will produce .xslx file containing multiple sheets.
 - if action is allow / accept
 
 ### How to run:
-- Set path variable inside the script to folder that contains reports.csv
+- Enter path to folder that contains reports.csv
 - Run - `python ExportFindings.py`
+- It will print out check results to the Terminal & output "Parsed_Rules.xlsx" file to the specified path folder
 
 
 ### Enjoy :)
