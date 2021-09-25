@@ -5,11 +5,25 @@ Open each file and save as .csv again, after that this error will disappear
 Good to know - Microsoft Excel doesn't approve more than 150 chars in a cell when conditional formatting is applied,
 so the script will not be able to fill color to those fields, but the check still be performed.
 """
+
 import collections
 import os
 import pandas as pd
 
 try:
+    FIELDS = [
+        'from zone',
+        'to zone',
+        'source',
+        'destination',
+        'service',
+        'application identity',
+        'rule status',
+        'action',
+        'track',
+        'securetrack rule uid',
+        'service negated'
+    ]
     # Specify path to .csv Reports
     path_to_files = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
     # path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
@@ -33,34 +47,34 @@ try:
 
         while (number := number + 1) <= len(files):
             for f in files:
-                file = _path_to_files[0] + f
-
                 # Reading files
-                main_frame = pd.read_csv(file, encoding=encoding_files)
+                main_frame = pd.read_csv(_path_to_files[0] + f, encoding=encoding_files)
+
+                # Lowering case of all cells in the dataframe for unity
+                main_frame = main_frame.applymap(lambda x: x.lower() if pd.notnull(x) else x)
 
                 # Getting a row number of column set for rules
-                # rules = main_frame.index[main_frame["Tufin Object lookup results"] == "Device name"].tolist()
-                rules = main_frame[main_frame.isin(["Device name"]).any(axis="columns")]
-                rules = rules.index.tolist()
+                for settings in main_frame.itertuples():
+                    if FIELDS[2] and FIELDS[3] and FIELDS[4] in settings:
 
-                # Changing main columns to the identified column for rules
-                main_frame.columns = main_frame.iloc[rules[0]]
+                        # Changing main columns to the identified column for rules
+                        main_frame.columns = main_frame.iloc[settings[0]]
 
-                # Dropping each row until founded columns + 1 - it's self,
-                # what leaves me with a new assigned columns & rules only
-                main_frame = main_frame.drop(main_frame.index[0:rules[0] + 1])
+                        # Dropping each row until founded columns + 1 - it's self,
+                        # what leaves me with a new assigned columns & rules only
+                        main_frame = main_frame.drop(main_frame.index[0:settings[0] + 1])
 
-                for index, row in main_frame.iterrows():
-                    # Appending to list for further creation of a DataFrame + Lowering the case for consistent checks
-                    dataframe_list.append(row.str.lower())
+                        for index, row in main_frame.iterrows():
+                            # Appending to list for further creation of a DataFrame
+                            dataframe_list.append(row)
 
         # Creating a new DataFrame from a list
         new_frame = pd.DataFrame(dataframe_list)
 
         # Removing duplicate Rules from a DataFrame
-        new_frame = new_frame.drop_duplicates(subset='SecureTrack Rule UID', keep='first')
+        new_frame = new_frame.drop_duplicates(subset=FIELDS[9], keep='first')
 
-        # Writing to all rules to "Rules" sheet
+        # Writing to all rules to "All Rules" sheet
         writer = pd.ExcelWriter(_path_to_files[0] + "Parsed_Rules.xlsx", engine='xlsxwriter')
         new_frame.to_excel(writer, sheet_name="All Rules", startrow=0, index=False)
 
@@ -144,184 +158,184 @@ try:
             crossed_list = list()
 
             for src_zone, src, dst_zone, dst, srv_cross, app_srv, act_cross, status in zip(
-                    data_frame['From zone'],
-                    data_frame['Source'],
-                    data_frame['To zone'],
-                    data_frame['Destination'],
-                    data_frame['Service'],
-                    data_frame['Application Identity'],
-                    data_frame['Action'],
-                    data_frame['Rule status']):
+                    data_frame[FIELDS[0]],
+                    data_frame[FIELDS[2]],
+                    data_frame[FIELDS[1]],
+                    data_frame[FIELDS[3]],
+                    data_frame[FIELDS[4]],
+                    data_frame[FIELDS[5]],
+                    data_frame[FIELDS[7]],
+                    data_frame[FIELDS[6]]):
 
                 # Check if source zone, destination zone, source, destination are crossed,
-                # Source user is not specified & services / app identity are equal,
+                # source user is not specified & services / app identity are equal,
                 # That rule in enabled state & not negated.
                 crossed_conditions = new_frame.loc[
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'application-default') &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'application-default') &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'application-default') &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'application-default') &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'].isnull()) &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]].isnull()) &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'accept') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'accept') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == dst) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Destination'] == src) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == dst) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[3]] == src) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == data_frame['To zone']) &
-                    (data_frame['To zone'] == data_frame['From zone']) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == data_frame[FIELDS[1]]) &
+                    (data_frame[FIELDS[1]] == data_frame[FIELDS[0]]) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     |
-                    (data_frame['From zone'] == dst_zone) &
-                    (data_frame['To zone'] == src_zone) &
-                    (data_frame['Source'] == data_frame['Destination']) &
-                    (data_frame['Destination'] == data_frame['Source']) &
-                    (data_frame['Service'] == srv_cross) &
-                    (data_frame['Application Identity'] == 'any') &
-                    (data_frame['Action'] == 'allow') &
-                    (data_frame['Rule status'] == 'enabled')
+                    (data_frame[FIELDS[0]] == dst_zone) &
+                    (data_frame[FIELDS[1]] == src_zone) &
+                    (data_frame[FIELDS[2]] == data_frame[FIELDS[3]]) &
+                    (data_frame[FIELDS[3]] == data_frame[FIELDS[2]]) &
+                    (data_frame[FIELDS[4]] == srv_cross) &
+                    (data_frame[FIELDS[5]] == 'any') &
+                    (data_frame[FIELDS[7]] == 'allow') &
+                    (data_frame[FIELDS[6]] == 'enabled')
                     ]
 
                 if not crossed_conditions.empty:
@@ -336,20 +350,20 @@ try:
                 # Dropping empty columns
                 crossed_frame.dropna(how='all', axis=1, inplace=True)
                 # Dropping duplicate values based upon rule ID
-                crossed_frame = crossed_frame.drop_duplicates(subset='SecureTrack Rule UID', keep="first")
+                crossed_frame = crossed_frame.drop_duplicates(subset=FIELDS[9], keep="first")
 
                 src_dst_cross = list()
                 src_z_dst_z = list()
-                # Sorting based on Service
-                crossed_frame = crossed_frame.sort_values('Service')
+                # Sorting based on service
+                crossed_frame = crossed_frame.sort_values(FIELDS[4])
 
                 # Writing to a 'Crossed rules' sheet
 
-                for sr, dst in zip(crossed_frame['Source'], crossed_frame['Destination']):
+                for sr, dst in zip(crossed_frame[FIELDS[2]], crossed_frame[FIELDS[3]]):
                     src_dst_cross.append(sr)
                     src_dst_cross.append(dst)
 
-                for src_z, dst_z in zip(crossed_frame['From zone'], crossed_frame['To zone']):
+                for src_z, dst_z in zip(crossed_frame[FIELDS[0]], crossed_frame[FIELDS[1]]):
                     src_z_dst_z.append(src_z)
                     src_z_dst_z.append(dst_z)
 
@@ -362,7 +376,7 @@ try:
 
                 cross_workbook = writer.book
                 cross_worksheet = cross_workbook.add_worksheet(sheet_name)
-                # # position = list(crossed_frame).index('Source') + 1
+                # # position = list(crossed_frame).index(FIELDS[2]) + 1
 
                 total_rows = len(crossed_frame) - 1  # Minus the header / column row
 
@@ -387,11 +401,11 @@ try:
                         pass
 
                 positions = [
-                    list(crossed_frame)[0].index('From zone'),
-                    list(crossed_frame)[0].index('Source'),
-                    list(crossed_frame)[0].index('To zone'),
-                    list(crossed_frame)[0].index('Destination'),
-                    list(crossed_frame)[0].index('Service')
+                    list(crossed_frame)[0].index(FIELDS[0]),
+                    list(crossed_frame)[0].index(FIELDS[2]),
+                    list(crossed_frame)[0].index(FIELDS[1]),
+                    list(crossed_frame)[0].index(FIELDS[3]),
+                    list(crossed_frame)[0].index(FIELDS[4])
                 ]
 
                 any_srv_format = cross_workbook.add_format(
@@ -432,7 +446,7 @@ try:
                             }
                         )
 
-                        # To zone / From Zone column formatting
+                        # to zone / from zone column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[0],
@@ -444,7 +458,7 @@ try:
                                 'value': f'"{z}"',
                                 'format': fmt}
                         )
-                        # To zone / From Zone column formatting
+                        # to zone / from zone column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[2],
@@ -456,7 +470,7 @@ try:
                                 'value': f'"{z}"',
                                 'format': fmt}
                         )
-                        # Source / Destination column formatting
+                        # source / destination column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[1],
@@ -479,7 +493,7 @@ try:
                             }
                         )
 
-                        # To zone / From Zone column formatting
+                        # to zone / from zone column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[0],
@@ -491,7 +505,7 @@ try:
                                 'value': f'"{z}"',
                                 'format': fmt}
                         )
-                        # To zone / From Zone column formatting
+                        # to zone / from zone column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[2],
@@ -504,7 +518,7 @@ try:
                                 'format': fmt}
                         )
 
-                        # Source / Destination column formatting
+                        # source / destination column formatting
                         cross_worksheet.conditional_format(
                             first_row=1,
                             first_col=positions[1],
@@ -532,8 +546,8 @@ try:
             new_unsafe_dict = collections.defaultdict(list)
             tmp = list()
 
-            # Creating dictionary UID: [Service_1, Service_2, etc]
-            for srv, uid in zip(data_frame['Service'], data_frame['SecureTrack Rule UID']):
+            # Creating dictionary UID: [service_1, service_2, etc]
+            for srv, uid in zip(data_frame[FIELDS[4]], data_frame[FIELDS[9]]):
                 unsafe_dict[uid] = srv.split("\n")
 
             # Checking if more than 1 item in Value list, if it's only http or http\ssh\smb\n etc..
@@ -563,8 +577,8 @@ try:
 
             for key, values in new_unsafe_dict.items():
                 values = str(values).strip("[]")  # Can do better
-                unsafe_srv = data_frame.loc[data_frame['SecureTrack Rule UID'] == key]
-                unsafe_srv['Service'] = unsafe_srv['Service'] = [x.replace(x, values) for x in unsafe_srv['Service']]
+                unsafe_srv = data_frame.loc[data_frame[FIELDS[9]] == key]
+                unsafe_srv[FIELDS[4]] = unsafe_srv[FIELDS[4]] = [x.replace(x, values) for x in unsafe_srv[FIELDS[4]]]
 
                 for i, r in unsafe_srv.iterrows():
                     tmp.append(r.str.lower())
@@ -574,15 +588,15 @@ try:
             if not unsafe.empty:
                 # return unsafe
                 unsafe_srv = unsafe.loc[
-                    (unsafe['Rule status'] == 'enabled') &
-                    (unsafe['Action'] == 'allow')
+                    (unsafe[FIELDS[6]] == 'enabled') &
+                    (unsafe[FIELDS[7]] == 'allow')
                     |
-                    (unsafe['Rule status'] == 'enabled') &
-                    (unsafe['Action'] == 'accept')
+                    (unsafe[FIELDS[6]] == 'enabled') &
+                    (unsafe[FIELDS[7]] == 'accept')
                     ]
 
-                # Sorting rules by Service - for easier view
-                unsafe_srv = unsafe_srv.sort_values('Service')
+                # Sorting rules by service - for easier view
+                unsafe_srv = unsafe_srv.sort_values(FIELDS[4])
 
                 return unsafe_srv
             else:
@@ -593,159 +607,159 @@ try:
         # Checks must be "lowercase"
         # Basically filtering column values & then using these filtered DF in the check(dataframe=DF) function
         any_srv = new_frame.loc[
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['Application Identity'].isnull())
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[5]].isnull())
             |
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['Application Identity'] == 'any')
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[5]] == 'any')
             |
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['Application Identity'].isnull())
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[5]].isnull())
             |
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['Application Identity'] == 'any')
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[5]] == 'any')
             |
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['Application Identity'] == 'application-default')
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[5]] == 'application-default')
             |
-            (new_frame['Service'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Service negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['Application Identity'] == 'application-default')
+            (new_frame[FIELDS[4]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[10]] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[5]] == 'application-default')
             ]
 
         any_src = new_frame.loc[
-            (new_frame['Source'] == 'any') &
-            (new_frame['Source user'].isnull()) &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Source negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['From zone'].isnull())
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame['source user'].isnull()) &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['source negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[0]].isnull())
             |
-            (new_frame['Source'] == 'any') &
-            (new_frame['Source user'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Source negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['From zone'] == 'any')
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame['source user'] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['source negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[0]] == 'any')
             |
-            (new_frame['Source'] == 'any') &
-            (new_frame['Source user'].isnull()) &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Source negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['From zone'].isnull())
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame['source user'].isnull()) &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['source negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[0]].isnull())
             |
-            (new_frame['Source'] == 'any') &
-            (new_frame['Source user'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Source negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['From zone'] == 'any')
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame['source user'] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['source negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[0]] == 'any')
             ]
 
         any_dst = new_frame.loc[
-            (new_frame['Destination'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Destination negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['To zone'].isnull())
+            (new_frame[FIELDS[3]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['destination negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[1]].isnull())
             |
-            (new_frame['Destination'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Destination negated'] == 'false') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['To zone'] == 'any')
+            (new_frame[FIELDS[3]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['destination negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[1]] == 'any')
             |
-            (new_frame['Destination'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Destination negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['To zone'].isnull())
+            (new_frame[FIELDS[3]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['destination negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[1]].isnull())
             |
-            (new_frame['Destination'] == 'any') &
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Destination negated'] == 'false') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['To zone'] == 'any')
+            (new_frame[FIELDS[3]] == 'any') &
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame['destination negated'] == 'false') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[1]] == 'any')
             ]
 
         disabled_rules = new_frame.loc[
-            new_frame['Rule status'] == 'disabled'
+            new_frame[FIELDS[6]] == 'disabled'
             ]
 
         reject_rules = new_frame.loc[
-            (new_frame['Action'] == 'reject') &
-            (new_frame['Rule status'] == 'enabled')
+            (new_frame[FIELDS[7]] == 'reject') &
+            (new_frame[FIELDS[6]] == 'enabled')
             ]
 
         no_log_rules = new_frame.loc[
-            (new_frame['Track'] == 'none') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['Rule status'] == 'enabled')
+            (new_frame[FIELDS[8]] == 'none') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[6]] == 'enabled')
             |
-            (new_frame['Track'] == 'none') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['Rule status'] == 'enabled')
+            (new_frame[FIELDS[8]] == 'none') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[6]] == 'enabled')
             ]
 
         worst_rules = new_frame.loc[
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Action'] == 'accept') &
-            (new_frame['Source'] == 'any') &
-            (new_frame['Destination'] == 'any')
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[7]] == 'accept') &
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame[FIELDS[3]] == 'any')
             |
-            (new_frame['Rule status'] == 'enabled') &
-            (new_frame['Action'] == 'allow') &
-            (new_frame['Source'] == 'any') &
-            (new_frame['Destination'] == 'any')
+            (new_frame[FIELDS[6]] == 'enabled') &
+            (new_frame[FIELDS[7]] == 'allow') &
+            (new_frame[FIELDS[2]] == 'any') &
+            (new_frame[FIELDS[3]] == 'any')
             ]
 
-        # Any Check at Source, Destination & Service Fields
+        # Any Check at source, destination & service Fields
         check(
             data_frame=any_srv,
-            sheet_name="Any Service",
-            column=["Service"],
-            pass_msg="PASS - Any Service",
-            fail_msg="FAIL - Any Service"
+            sheet_name="Any service",
+            column=["service"],
+            pass_msg="PASS - Any service",
+            fail_msg="FAIL - Any service"
         )
         check(
             data_frame=any_src,
-            sheet_name="Any Source",
-            column=["Source"],
-            pass_msg="PASS - Any Source",
-            fail_msg="FAIL - Any Source"
+            sheet_name="Any source",
+            column=["source"],
+            pass_msg="PASS - Any source",
+            fail_msg="FAIL - Any source"
         )
 
         check(
             data_frame=any_dst,
-            sheet_name="Any Destination",
-            column=["Destination"],
-            pass_msg="PASS - Any Destination",
-            fail_msg="FAIL - Any Destination"
+            sheet_name="Any destination",
+            column=["destination"],
+            pass_msg="PASS - Any destination",
+            fail_msg="FAIL - Any destination"
         )
 
         # Disabled Rules
         check(
             data_frame=disabled_rules,
             sheet_name="Disabled rules",
-            column=["Rule status"],
+            column=["rule status"],
             pass_msg="PASS - Disabled rules",
             fail_msg="FAIL - Disabled rules"
         )
@@ -754,7 +768,7 @@ try:
         check(
             data_frame=reject_rules,
             sheet_name="Reject rules",
-            column=["Action"],
+            column=["action"],
             pass_msg="PASS - Reject rules",
             fail_msg="FAIL - Reject rules"
         )
@@ -763,7 +777,7 @@ try:
         check(
             data_frame=no_log_rules,
             sheet_name="No Log rules",
-            column=["Track"],
+            column=["track"],
             pass_msg="PASS - No Log rules",
             fail_msg="FAIL - No Log rules"
         )
@@ -788,7 +802,7 @@ try:
                 ],
             ),
             sheet_name="Un-Safe Protocols",
-            column=["Service"],
+            column=["service"],
             pass_msg="PASS - Un-Safe Protocols",
             fail_msg="FAIL - Un-Safe Protocols"
         )
@@ -803,15 +817,15 @@ try:
 
         # Worst Rules - Presence of combination of multiple checks on one rule
         # Example:
-        # From "Any" Zone & "Any" Source traffic may proceed to:
-        # "Any" Zone & "Any" Destination on Any Service | Application
+        # From "Any" Zone & "Any" source traffic may proceed to:
+        # "Any" Zone & "Any" destination on Any service | Application
         check(
             data_frame=worst_rules,
             sheet_name="Worst Rules",
             column=[
-                'Source',
-                'Destination',
-                'Service'
+                FIELDS[2],
+                FIELDS[3],
+                FIELDS[4]
             ],
             pass_msg="PASS - Worst Rules",
             fail_msg="FAIL - Worst Rules"
@@ -823,7 +837,7 @@ try:
         writer.save()
 
     elif len(path_to_files) < 2:
-        print("No characters were entered, \nPlease enter a legitimate path & re-run the program.")
+        print("Nothing entered, \nPlease enter a legitimate path & re-run the program.")
 
 except FileNotFoundError:
     print(f'Wrong path - "{_path_to_files[0]}" (or files are missing), \nCheck yourself & re-run the program')
