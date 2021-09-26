@@ -11,6 +11,7 @@ import os
 import pandas as pd
 
 try:
+
     FIELDS = [
         'from zone',
         'to zone',
@@ -24,9 +25,11 @@ try:
         'securetrack rule uid',
         'service negated'
     ]
+
     # Specify path to .csv Reports
     path_to_files = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
     # path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
+    
     _path_to_files = []
     if len(path_to_files) >= 2:
         _path_to_files.append(path_to_files)
@@ -376,7 +379,6 @@ try:
 
                 cross_workbook = writer.book
                 cross_worksheet = cross_workbook.add_worksheet(sheet_name)
-                # # position = list(crossed_frame).index(FIELDS[2]) + 1
 
                 total_rows = len(crossed_frame) - 1  # Minus the header / column row
 
