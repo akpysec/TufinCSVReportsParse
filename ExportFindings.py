@@ -35,7 +35,7 @@ try:
         _path_to_files.append(path_to_files)
 
         # Iterate over .csv files in a path
-        files = [x for x in os.listdir(path=_path_to_files[0]) if x.endswith(".csv")]
+        files = [x for x in os.listdir(path=_path_to_files[0]) if x.lower().endswith(".csv")]
 
         # Adjust encoding if needed
         encoding_files = "windows-1255"
