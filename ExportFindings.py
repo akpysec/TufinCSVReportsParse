@@ -39,7 +39,6 @@ try:
 
         # Adjust encoding if needed
         encoding_files = "windows-1256"
-        number = 0
 
         dataframe_list = list()
 
