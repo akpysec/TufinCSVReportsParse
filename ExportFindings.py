@@ -10,6 +10,7 @@ import collections
 import os
 import pandas as pd
 
+
 try:
 
     FIELDS = [
@@ -29,7 +30,6 @@ try:
     # Specify path to .csv Reports
     path_to_files = str(input("Enter a path to .CSV reports folder:\n")) + "\\"
     # path = "C:\\path\\to\\folder\\containing\\tufin_reports\\"
-    
     _path_to_files = []
     if len(path_to_files) >= 2:
         _path_to_files.append(path_to_files)
@@ -38,7 +38,7 @@ try:
         files = [x for x in os.listdir(path=_path_to_files[0]) if x.lower().endswith(".csv")]
 
         # Adjust encoding if needed
-        encoding_files = "windows-1255"
+        encoding_files = "windows-1256"
         number = 0
 
         dataframe_list = list()
@@ -48,28 +48,27 @@ try:
         # SettingWithCopyWarning - Appeared when a .drop empty columns method was called before .to_excel method call
         pd.set_option('mode.chained_assignment', None)
 
-        while (number := number + 1) <= len(files):
-            for f in files:
-                # Reading files
-                main_frame = pd.read_csv(_path_to_files[0] + f, encoding=encoding_files)
+        for f in files:
+            # Reading files
+            main_frame = pd.read_csv(_path_to_files[0] + f, encoding=encoding_files)
 
-                # Lowering case of all cells in the dataframe for unity
-                main_frame = main_frame.applymap(lambda x: x.lower() if pd.notnull(x) else x)
+            # Lowering case of all cells in the dataframe for unity
+            main_frame = main_frame.applymap(lambda x: x.lower() if pd.notnull(x) else x)
 
-                # Getting a row number of column set for rules
-                for settings in main_frame.itertuples():
-                    if FIELDS[2] and FIELDS[3] and FIELDS[4] in settings:
+            # Getting a row number of column set for rules
+            for settings in main_frame.itertuples():
+                if FIELDS[2] and FIELDS[3] and FIELDS[4] in settings:
 
-                        # Changing main columns to the identified column for rules
-                        main_frame.columns = main_frame.iloc[settings[0]]
+                    # Changing main columns to the identified column for rules
+                    main_frame.columns = main_frame.iloc[settings[0]]
 
-                        # Dropping each row until founded columns + 1 - it's self,
-                        # what leaves me with a new assigned columns & rules only
-                        main_frame = main_frame.drop(main_frame.index[0:settings[0] + 1])
+                    # Dropping each row until founded columns + 1 - it's self,
+                    # what leaves me with a new assigned columns & rules only
+                    main_frame = main_frame.drop(main_frame.index[0:settings[0] + 1])
 
-                        for index, row in main_frame.iterrows():
-                            # Appending to list for further creation of a DataFrame
-                            dataframe_list.append(row)
+                    for index, row in main_frame.iterrows():
+                        # Appending to list for further creation of a DataFrame
+                        dataframe_list.append(row)
 
         # Creating a new DataFrame from a list
         new_frame = pd.DataFrame(dataframe_list)
