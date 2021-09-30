@@ -39,6 +39,7 @@ try:
 
         # Adjust encoding if needed
         encoding_files = "windows-1256"
+        number = 0
 
         dataframe_list = list()
 
@@ -52,7 +53,7 @@ try:
             main_frame = pd.read_csv(_path_to_files[0] + f, encoding=encoding_files)
 
             # Lowering case of all cells in the dataframe for unity
-            main_frame = main_frame.applymap(lambda x: x.lower() if pd.notnull(x) else x)
+            main_frame = main_frame.applymap(lambda x: x.lower() if isinstance(x, str) else x)
 
             # Getting a row number of column set for rules
             for settings in main_frame.itertuples():
@@ -61,9 +62,8 @@ try:
                     # Changing main columns to the identified column for rules
                     main_frame.columns = main_frame.iloc[settings[0]]
 
-                    # Dropping each row until founded columns + 1 - it's self,
-                    # what leaves me with a new assigned columns & rules only
-                    main_frame = main_frame.drop(main_frame.index[0:settings[0] + 1])
+                    # Selecting relevant rows from DataFrame (between rule base section)
+                    main_frame = main_frame.iloc[settings[0] + 1: main_frame.last_valid_index() + 1]
 
                     for index, row in main_frame.iterrows():
                         # Appending to list for further creation of a DataFrame
